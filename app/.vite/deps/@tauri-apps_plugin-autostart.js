@@ -1,0 +1,20 @@
+import {
+  invoke
+} from "./chunk-WZMIGSVH.js";
+
+// node_modules/@tauri-apps/plugin-autostart/dist-js/index.js
+async function isEnabled() {
+  return await invoke("plugin:autostart|is_enabled");
+}
+async function enable() {
+  await invoke("plugin:autostart|enable");
+}
+async function disable() {
+  await invoke("plugin:autostart|disable");
+}
+export {
+  disable,
+  enable,
+  isEnabled
+};
+//# sourceMappingURL=@tauri-apps_plugin-autostart.js.map

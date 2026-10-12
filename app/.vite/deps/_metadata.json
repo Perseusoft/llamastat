@@ -1,0 +1,49 @@
+{
+  "hash": "c8447b04",
+  "configHash": "29297c40",
+  "lockfileHash": "5ae99512",
+  "browserHash": "7a3253b1",
+  "optimized": {
+    "@tauri-apps/api/app": {
+      "src": "../../node_modules/@tauri-apps/api/app.js",
+      "file": "@tauri-apps_api_app.js",
+      "fileHash": "0354aa64",
+      "needsInterop": false
+    },
+    "@tauri-apps/api/core": {
+      "src": "../../node_modules/@tauri-apps/api/core.js",
+      "file": "@tauri-apps_api_core.js",
+      "fileHash": "4e8c4830",
+      "needsInterop": false
+    },
+    "@tauri-apps/api/event": {
+      "src": "../../node_modules/@tauri-apps/api/event.js",
+      "file": "@tauri-apps_api_event.js",
+      "fileHash": "6dbaf0b4",
+      "needsInterop": false
+    },
+    "@tauri-apps/api/mocks": {
+      "src": "../../node_modules/@tauri-apps/api/mocks.js",
+      "file": "@tauri-apps_api_mocks.js",
+      "fileHash": "4fc67255",
+      "needsInterop": false
+    },
+    "@tauri-apps/plugin-autostart": {
+      "src": "../../node_modules/@tauri-apps/plugin-autostart/dist-js/index.js",
+      "file": "@tauri-apps_plugin-autostart.js",
+      "fileHash": "8a8c3547",
+      "needsInterop": false
+    },
+    "svelte": {
+      "src": "../../node_modules/svelte/src/index-client.js",
+      "file": "svelte.js",
+      "fileHash": "bb6ed635",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "chunk-WZMIGSVH": {
+      "file": "chunk-WZMIGSVH.js"
+    }
+  }
+}

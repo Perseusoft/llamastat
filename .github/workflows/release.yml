@@ -36,8 +36,8 @@ jobs:
             bundles: --bundles nsis
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -84,7 +84,7 @@ jobs:
           find "$bundle" -maxdepth 2 -type f \( -name '*.dmg' -o -name '*.app.tar.gz' -o -name '*.deb' -o -name '*.rpm' \
             -o -name '*.AppImage' -o -name '*.msi' -o -name '*-setup.exe' \) -exec cp {} dist-upload/ \;
           ls -la dist-upload
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: llamastat-${{ matrix.name }}
           path: dist-upload/*
@@ -95,7 +95,7 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ vars.R2_BUCKET != '' }}
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           path: artifacts
           merge-multiple: true
