@@ -55,6 +55,19 @@ Setup:
 5. Once a tagged release has been mirrored, point the README download table at
    `https://<your-domain>/latest/<file>`.
 
+### Uploading by hand
+
+`scripts/r2-upload.sh` uploads with the same layout, handy to try the bucket before the first tagged release or to
+re-publish an existing GitHub release:
+
+```bash
+export R2_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=... R2_BUCKET=llamastat-downloads
+scripts/r2-upload.sh v0.2.0 app/src-tauri/target/release/bundle   # local builds
+scripts/r2-upload.sh v0.2.0 --from-github                          # assets of the GitHub release
+```
+
+Folders are created on upload (R2 has no real folders, just key prefixes).
+
 ## macOS signing (optional)
 
 Without signing, users have to right-click → Open the first time. To sign and notarize, add these secrets
