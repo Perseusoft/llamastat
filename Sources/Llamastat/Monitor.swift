@@ -9,6 +9,7 @@ struct Sample: Identifiable, Sendable {
     var promptRate: Double
     var gpu: Double
     var memory: Double
+    var swap: UInt64
 }
 
 /// Live view of a loaded model, merged with its process stats.
@@ -26,7 +27,9 @@ struct ActiveModel: Identifiable, Sendable {
 @MainActor
 @Observable
 final class Monitor {
-    static let historyLength = 120
+    /// Samples kept for the dashboard; the popover shows the last `popoverHistory`.
+    static let historyLength = 300
+    static let popoverHistory = 120
 
     private(set) var backends: [BackendSnapshot] = []
     private(set) var active: [ActiveModel] = []
@@ -37,8 +40,19 @@ final class Monitor {
     var lastError: String?
     var pending: Set<String> = []
 
-    let sources: [any ModelBackend] = [LlamaCppBackend(), OllamaBackend()]
-    let routerLabel = "com.local.llama-router"
+    let settings: AppSettings
+
+    init(settings: AppSettings = .shared) {
+        self.settings = settings
+    }
+
+    /// Rebuilt every tick so URL / enable changes in Settings apply right away.
+    private var sources: [any ModelBackend] {
+        var result: [any ModelBackend] = []
+        if settings.llamaCppEnabled, let url = URL(string: settings.llamaCppURL) { result.append(LlamaCppBackend(baseURL: url)) }
+        if settings.ollamaEnabled, let url = URL(string: settings.ollamaURL) { result.append(OllamaBackend(baseURL: url)) }
+        return result
+    }
 
     private var previous: [String: (time: Date, predicted: Double, prompt: Double, cpu: UInt64)] = [:]
     private var task: Task<Void, Never>?
@@ -47,6 +61,13 @@ final class Monitor {
     var onlineBackends: [BackendSnapshot] { backends.filter(\.online) }
     var generationRate: Double { active.reduce(0) { $0 + $1.generationRate } }
     var isGenerating: Bool { active.contains(where: \.isBusy) }
+    var recentHistory: ArraySlice<Sample> { history.suffix(Self.popoverHistory) }
+    /// Context fill of the busiest loaded model.
+    var contextFraction: Double? {
+        let model = active.first(where: \.isBusy) ?? active.first
+        guard let size = model?.stats.contextSize, size > 0 else { return nil }
+        return Double(model?.stats.contextUsed ?? 0) / Double(size)
+    }
     /// Today's footgun: two backends each holding a model in unified memory.
     var multipleBackendsLoaded: Bool { Set(active.map(\.info.backend)).count > 1 }
 
@@ -55,12 +76,13 @@ final class Monitor {
         task = Task { [weak self] in
             while !Task.isCancelled {
                 await self?.tick()
-                try? await Task.sleep(for: .seconds(1))
+                try? await Task.sleep(for: .seconds(self?.settings.refreshInterval ?? 1))
             }
         }
     }
 
     func tick() async {
+        let sources = self.sources
         let snapshots = await withTaskGroup(of: (Int, BackendSnapshot).self) { group in
             for (i, source) in sources.enumerated() {
                 group.addTask { (i, await source.snapshot()) }
@@ -103,7 +125,8 @@ final class Monitor {
             generationRate: generationRate,
             promptRate: active.reduce(0) { $0 + $1.promptRate },
             gpu: gpu?.utilization ?? 0,
-            memory: memory.usedFraction
+            memory: memory.usedFraction,
+            swap: memory.swapUsed
         ))
         if history.count > Self.historyLength { history.removeFirst(history.count - Self.historyLength) }
     }
@@ -128,7 +151,7 @@ final class Monitor {
     }
 
     func restartRouter() {
-        run("/bin/launchctl", ["kickstart", "-k", "gui/\(getuid())/\(routerLabel)"])
+        run("/bin/launchctl", ["kickstart", "-k", "gui/\(getuid())/\(settings.routerLabel)"])
     }
 
     private func run(_ path: String, _ args: [String]) {

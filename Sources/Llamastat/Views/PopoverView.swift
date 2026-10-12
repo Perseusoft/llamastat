@@ -3,22 +3,32 @@ import SwiftUI
 
 struct PopoverView: View {
     @Environment(Monitor.self) private var monitor
+    @Environment(AppSettings.self) private var settings
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
-            rings
-            warnings
-            SectionHeader(title: "History")
-            HistoryChart(history: monitor.history)
-            ForEach(monitor.active) { model in
-                SectionHeader(verbatim: Format.shortName(model.info.name))
-                ModelDetails(model: model)
+            if settings.isVisible(.rings) { rings }
+            if settings.isVisible(.warnings) { warnings }
+            if settings.isVisible(.history) {
+                SectionHeader(title: "History")
+                HistoryChart(history: Array(monitor.recentHistory))
             }
-            SectionHeader(title: "Memory")
-            memoryDetails
-            SectionHeader(title: "Models")
-            ModelList()
+            if settings.isVisible(.models) {
+                ForEach(monitor.active) { model in
+                    SectionHeader(verbatim: Format.shortName(model.info.name))
+                    ModelDetails(model: model)
+                }
+            }
+            if settings.isVisible(.memory) {
+                SectionHeader(title: "Memory")
+                memoryDetails
+            }
+            if settings.isVisible(.modelList) {
+                SectionHeader(title: "Models")
+                ModelList()
+            }
             footer
         }
         .padding(14)
@@ -40,7 +50,7 @@ struct PopoverView: View {
     }
 
     private var rings: some View {
-        let peak = max(monitor.history.map(\.generationRate).max() ?? 0, 1)
+        let peak = max(monitor.recentHistory.map(\.generationRate).max() ?? 0, 1)
         return HStack(alignment: .center) {
             Ring(fraction: monitor.memory.usedFraction, color: monitor.memory.usedFraction > 0.85 ? Palette.warning : Palette.memory,
                  label: Format.percent(monitor.memory.usedFraction), caption: "RAM", size: 58)
@@ -85,7 +95,14 @@ struct PopoverView: View {
         HStack {
             Button("Restart router") { monitor.restartRouter() }
             Spacer()
-            LanguageMenu()
+            Button {
+                openWindow(id: SettingsWindow.id)
+                // Menu bar apps aren't active by default; without this the window opens behind others.
+                NSApp.activate(ignoringOtherApps: true)
+            } label: {
+                Image(systemName: "gearshape")
+            }
+            .help("Settings")
             Spacer()
             Button("Quit") { NSApplication.shared.terminate(nil) }
         }
@@ -137,7 +154,7 @@ struct HistoryChart: View {
                 Legend(color: Palette.generation, text: "tokens/s")
                 Legend(color: Palette.gpu, text: "GPU")
                 Spacer()
-                Text("last \(Monitor.historyLength) s").font(.caption2).foregroundStyle(.tertiary)
+                Text("last \(Monitor.popoverHistory) s").font(.caption2).foregroundStyle(.tertiary)
             }
         }
         .padding(8)

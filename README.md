@@ -22,6 +22,19 @@ Backends: **llama.cpp** (router `llama-server --models-preset`) y **Ollama**.
 
 Avisa cuando hay modelos cargados en dos backends a la vez o el swap está casi lleno.
 
+## Ajustes
+
+Botón ⚙︎ del panel → ventana con:
+
+- **Dashboard**: RAM (apps / wired / comprimida / libre), tokens/s, GPU y swap con gráficas de los últimos 5 min.
+- **Barra de menú**: qué widgets mostrar y en qué orden (ícono, tokens/s, modelo, RAM %, GPU %, contexto %,
+  barra de RAM, gráfica de tokens/s), ícono (🦙, chip, cerebro, rayo, destellos), monocromo o en color.
+- **Panel**: qué secciones aparecen en el popover.
+- **Backends**: activar/desactivar llama.cpp y Ollama, URLs, LaunchAgent del router.
+- **General**: idioma, intervalo de actualización, abrir al iniciar sesión.
+
+`Llamastat --open-settings <dashboard|menuBar|panel|backends|general> --window-shot out.png` captura esa página.
+
 En llama.cpp, `/metrics` necesita `metrics = 1` en cada preset (ver `stack/models/presets.ini`).
 
 ## Compilar

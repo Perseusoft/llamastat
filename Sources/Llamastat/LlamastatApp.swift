@@ -3,6 +3,7 @@ import SwiftUI
 @main
 struct LlamastatApp: App {
     @State private var monitor = Monitor()
+    @State private var settings = AppSettings.shared
 
     init() {
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot"), i + 1 < CommandLine.arguments.count {
@@ -14,27 +15,43 @@ struct LlamastatApp: App {
         MenuBarExtra {
             PopoverView()
                 .environment(monitor)
+                .environment(settings)
         } label: {
-            StatusLabel(monitor: monitor)
+            StatusLabel(monitor: monitor, settings: settings)
                 .task { monitor.start() }
+                .modifier(OpenSettingsOnLaunch())
         }
         .menuBarExtraStyle(.window)
+
+        Window("Llamastat", id: SettingsWindow.id) {
+            SettingsWindow()
+                .environment(monitor)
+                .environment(settings)
+        }
+        .windowResizability(.contentSize)
+        .defaultPosition(.center)
     }
 }
 
-/// What sits in the menu bar: live t/s while generating, else the loaded model.
-struct StatusLabel: View {
-    var monitor: Monitor
+/// `--open-settings [page]` opens the settings window at launch (handy for screenshots).
+private struct OpenSettingsOnLaunch: ViewModifier {
+    @Environment(\.openWindow) private var openWindow
 
-    var body: some View {
-        if monitor.isGenerating {
-            Text("🦙 \(Format.rate(monitor.generationRate))")
-        } else if let model = monitor.active.first {
-            Text("🦙 \(Format.shortName(model.info.name))")
-        } else if monitor.onlineBackends.isEmpty {
-            Text("🦙 off")
-        } else {
-            Text("🦙")
+    func body(content: Content) -> some View {
+        content.task {
+            let args = CommandLine.arguments
+            guard args.contains("--open-settings") else { return }
+            openWindow(id: SettingsWindow.id)
+            NSApp.activate(ignoringOtherApps: true)
+            // `--window-shot out.png`: draw the window into a PNG after it has collected some samples.
+            guard let i = args.firstIndex(of: "--window-shot"), i + 1 < args.count else { return }
+            try? await Task.sleep(for: .seconds(15))
+            if let view = NSApp.windows.first(where: { $0.isVisible && $0.identifier?.rawValue.hasPrefix(SettingsWindow.id) == true })?.contentView?.superview,
+               let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+                view.cacheDisplay(in: view.bounds, to: rep)
+                try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: args[i + 1]))
+            }
+            NSApp.terminate(nil)
         }
     }
 }
@@ -50,8 +67,35 @@ enum Snapshot {
                 await monitor.tick()
                 try? await Task.sleep(for: .seconds(1))
             }
+            let settings = AppSettings.shared
+            // Menu bar items with every widget on, monochrome and colored, on light and dark bars.
+            let allWidgets = MenuBarWidget.allCases.map { WidgetSetting(widget: $0, enabled: true) }
+            let previewSettings = settings
+            let saved = (previewSettings.widgets, previewSettings.tokensOnlyWhileGenerating)
+            previewSettings.widgets = allWidgets
+            previewSettings.tokensOnlyWhileGenerating = false
+            let bars = VStack(alignment: .leading, spacing: 6) {
+                ForEach([false, true], id: \.self) { colored in
+                    ForEach([ColorScheme.light, .dark], id: \.self) { scheme in
+                        StatusContent(monitor: monitor, settings: previewSettings, colored: colored)
+                            .padding(.horizontal, 8).padding(.vertical, 3)
+                            .background(scheme == .dark ? Color(white: 0.15) : Color(white: 0.92))
+                            .environment(\.colorScheme, scheme)
+                    }
+                }
+            }
+            .padding(8)
+            let barImage = ImageRenderer(content: bars)
+            barImage.scale = 2
+            if let image = barImage.nsImage, let tiff = image.tiffRepresentation,
+               let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+                try? png.write(to: url.deletingPathExtension().appendingPathExtension("menubar.png"))
+            }
+            (previewSettings.widgets, previewSettings.tokensOnlyWhileGenerating) = saved
+
             let view = PopoverView()
                 .environment(monitor)
+                .environment(settings)
                 .background(Color(nsColor: .windowBackgroundColor))
                 .environment(\.colorScheme, .light)
             let renderer = ImageRenderer(content: view)
