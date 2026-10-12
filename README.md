@@ -33,7 +33,9 @@ Requiere macOS 14+ y Xcode (los macros de SwiftUI no vienen en Command Line Tool
 ./scripts/build-app.sh --install  # copia a ~/Applications y la abre
 ```
 
-`Llamastat --snapshot out.png` renderiza el popover a una imagen tras ~8 s de muestreo.
+`Llamastat --snapshot out.png` renderiza el popover a una imagen tras ~8 s de muestreo (`-AppleLanguages "(es)"` para otro idioma).
+
+Idiomas: inglés y español. Sigue al sistema, o se elige con el globo 🌐 del popover. Traducciones en `Resources/<idioma>.lproj/Localizable.strings` (la clave es el texto en inglés).
 
 ## `stack/`: mi setup de llama.cpp
 

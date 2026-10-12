@@ -9,15 +9,15 @@ struct PopoverView: View {
             header
             rings
             warnings
-            SectionHeader(title: "Historial")
+            SectionHeader(title: "History")
             HistoryChart(history: monitor.history)
             ForEach(monitor.active) { model in
-                SectionHeader(title: Format.shortName(model.info.name))
+                SectionHeader(verbatim: Format.shortName(model.info.name))
                 ModelDetails(model: model)
             }
-            SectionHeader(title: "Memoria")
+            SectionHeader(title: "Memory")
             memoryDetails
-            SectionHeader(title: "Modelos")
+            SectionHeader(title: "Models")
             ModelList()
             footer
         }
@@ -27,12 +27,12 @@ struct PopoverView: View {
 
     private var header: some View {
         HStack {
-            Text("Llamastat").font(.headline)
+            Text(verbatim: "Llamastat").font(.headline)
             Spacer()
             ForEach(monitor.backends, id: \.kind) { backend in
                 HStack(spacing: 4) {
                     Circle().fill(backend.online ? Color.green : Palette.track).frame(width: 6, height: 6)
-                    Text(backend.kind.rawValue).font(.caption2).foregroundStyle(.secondary)
+                    Text(verbatim: backend.kind.rawValue).font(.caption2).foregroundStyle(.secondary)
                 }
             }
         }
@@ -57,23 +57,23 @@ struct PopoverView: View {
 
     @ViewBuilder private var warnings: some View {
         if monitor.multipleBackendsLoaded {
-            Warning(text: "Hay modelos cargados en más de un backend. Ojo con la RAM.")
+            Warning(text: Text("Models are loaded in more than one backend. Watch your RAM."))
         }
         if monitor.memory.swapTotal > 0, Double(monitor.memory.swapUsed) / Double(monitor.memory.swapTotal) > 0.8 {
-            Warning(text: "Swap casi lleno (\(Format.gigabytes(monitor.memory.swapUsed))). El sistema va a ir lento.")
+            Warning(text: Text("Swap almost full (\(Format.gigabytes(monitor.memory.swapUsed))). The system will slow down."))
         }
         if let error = monitor.lastError {
-            Warning(text: error)
+            Warning(text: Text(verbatim: error))
         }
     }
 
     private var memoryDetails: some View {
         let memory = monitor.memory
         return VStack(spacing: 5) {
-            DetailRow(color: Palette.memory, label: "En uso", value: "\(Format.gigabytes(memory.used)) / \(Format.gigabytes(memory.total))")
+            DetailRow(color: Palette.memory, label: "In use", value: "\(Format.gigabytes(memory.used)) / \(Format.gigabytes(memory.total))")
             UsageBar(fraction: memory.usedFraction, color: Palette.memory)
             DetailRow(color: nil, label: "Wired", value: Format.gigabytes(memory.wired))
-            DetailRow(color: nil, label: "Comprimida", value: Format.gigabytes(memory.compressed))
+            DetailRow(color: nil, label: "Compressed", value: Format.gigabytes(memory.compressed))
             DetailRow(color: nil, label: "Swap", value: Format.gigabytes(memory.swapUsed))
             if let gpuMemory = monitor.gpu?.memoryInUse {
                 DetailRow(color: Palette.gpu, label: "GPU", value: Format.gigabytes(gpuMemory))
@@ -83,9 +83,11 @@ struct PopoverView: View {
 
     private var footer: some View {
         HStack {
-            Button("Reiniciar router") { monitor.restartRouter() }
+            Button("Restart router") { monitor.restartRouter() }
             Spacer()
-            Button("Salir") { NSApplication.shared.terminate(nil) }
+            LanguageMenu()
+            Spacer()
+            Button("Quit") { NSApplication.shared.terminate(nil) }
         }
         .buttonStyle(.borderless)
         .font(.caption)
@@ -94,9 +96,9 @@ struct PopoverView: View {
 }
 
 private struct Warning: View {
-    var text: String
+    var text: Text
     var body: some View {
-        Label(text, systemImage: "exclamationmark.triangle.fill")
+        Label { text } icon: { Image(systemName: "exclamationmark.triangle.fill") }
             .font(.caption)
             .foregroundStyle(Palette.warning)
             .padding(.top, 8)
@@ -135,7 +137,7 @@ struct HistoryChart: View {
                 Legend(color: Palette.generation, text: "tokens/s")
                 Legend(color: Palette.gpu, text: "GPU")
                 Spacer()
-                Text("últimos \(Monitor.historyLength) s").font(.caption2).foregroundStyle(.tertiary)
+                Text("last \(Monitor.historyLength) s").font(.caption2).foregroundStyle(.tertiary)
             }
         }
         .padding(8)
@@ -145,7 +147,7 @@ struct HistoryChart: View {
 
 private struct Legend: View {
     var color: Color
-    var text: String
+    var text: LocalizedStringKey
     var body: some View {
         HStack(spacing: 4) {
             Circle().fill(color).frame(width: 6, height: 6)
@@ -160,35 +162,35 @@ struct ModelDetails: View {
     var body: some View {
         let stats = model.stats
         VStack(spacing: 5) {
-            DetailRow(color: model.isBusy ? .green : Palette.track, label: "Estado",
-                      value: model.isBusy ? "generando" : "en espera")
+            DetailRow(color: model.isBusy ? .green : Palette.track, label: "Status",
+                      value: model.isBusy ? String(localized: "generating") : String(localized: "idle"))
             DetailRow(color: nil, label: "Backend", value: model.info.backend.rawValue)
             if let size = stats.contextSize {
                 let used = stats.contextUsed ?? 0
-                DetailRow(color: Palette.prompt, label: "Contexto",
+                DetailRow(color: Palette.prompt, label: "Context",
                           value: "\(Format.count(Double(used))) / \(Format.context(size))")
                 UsageBar(fraction: Double(used) / Double(max(size, 1)), color: Palette.prompt)
             }
             if stats.slotsTotal > 0 {
-                DetailRow(color: nil, label: "Slots ocupados", value: "\(stats.slotsBusy) / \(stats.slotsTotal)")
+                DetailRow(color: nil, label: "Busy slots", value: "\(stats.slotsBusy) / \(stats.slotsTotal)")
             }
             if model.info.backend == .llamaCpp {
-                DetailRow(color: Palette.generation, label: "Generación (media)", value: Format.rate(stats.predictedTokensPerSecond))
-                DetailRow(color: Palette.prompt, label: "Prompt (media)", value: Format.rate(stats.promptTokensPerSecond))
-                DetailRow(color: nil, label: "Tokens generados", value: Format.count(stats.generatedTokens))
-                DetailRow(color: nil, label: "Tokens de prompt", value: Format.count(stats.promptTokensTotal))
+                DetailRow(color: Palette.generation, label: "Generation (avg)", value: Format.rate(stats.predictedTokensPerSecond))
+                DetailRow(color: Palette.prompt, label: "Prompt (avg)", value: Format.rate(stats.promptTokensPerSecond))
+                DetailRow(color: nil, label: "Generated tokens", value: Format.count(stats.generatedTokens))
+                DetailRow(color: nil, label: "Prompt tokens", value: Format.count(stats.promptTokensTotal))
             }
             if let vram = stats.vramBytes {
                 DetailRow(color: Palette.gpu, label: "VRAM", value: Format.bytes(vram))
             }
             if let process = model.process {
-                DetailRow(color: Palette.memory, label: "RAM del proceso", value: Format.gigabytes(max(process.residentBytes, process.footprintBytes)))
+                DetailRow(color: Palette.memory, label: "Process RAM", value: Format.gigabytes(max(process.residentBytes, process.footprintBytes)))
             }
             if let cpu = model.cpu {
                 DetailRow(color: nil, label: "CPU", value: Format.percent(cpu))
             }
             if let expires = stats.expiresAt {
-                DetailRow(color: nil, label: "Se descarga", value: expires.formatted(.relative(presentation: .named)))
+                DetailRow(color: nil, label: "Unloads", value: expires.formatted(.relative(presentation: .named)))
             }
         }
     }
@@ -200,7 +202,7 @@ struct ModelList: View {
     var body: some View {
         VStack(spacing: 6) {
             if monitor.allModels.isEmpty {
-                Text(monitor.onlineBackends.isEmpty ? "Ningún backend responde" : "Sin modelos")
+                Text(monitor.onlineBackends.isEmpty ? "No backend is responding" : "No models")
                     .font(.caption).foregroundStyle(.secondary)
             }
             ForEach(monitor.allModels) { model in
@@ -209,16 +211,23 @@ struct ModelList: View {
                         .fill(model.state == .loaded ? Color.green : model.state == .loading ? Color.yellow : Palette.track)
                         .frame(width: 8, height: 8)
                     VStack(alignment: .leading, spacing: 0) {
-                        Text(model.name).font(.system(size: 12)).lineLimit(1)
-                        Text("\(model.backend.rawValue) · \(Format.bytes(model.sizeBytes))")
+                        Text(verbatim: model.name).font(.system(size: 12)).lineLimit(1)
+                        Text(verbatim: "\(model.backend.rawValue) · \(Format.bytes(model.sizeBytes))")
                             .font(.caption2).foregroundStyle(.secondary)
                     }
                     Spacer()
                     if monitor.pending.contains(model.id) || model.state == .loading {
                         ProgressView().controlSize(.small)
                     } else {
-                        Button(model.state == .unloaded ? "Cargar" : "Descargar") { monitor.toggle(model) }
-                            .controlSize(.small)
+                        Button { monitor.toggle(model) } label: {
+                            if model.state == .unloaded {
+                                Label("Load", systemImage: "play.fill")
+                            } else {
+                                Label("Eject", systemImage: "eject.fill")
+                            }
+                        }
+                        .controlSize(.small)
+                        .help(model.state == .unloaded ? "Load the model into memory" : "Free the memory used by the model")
                     }
                 }
             }

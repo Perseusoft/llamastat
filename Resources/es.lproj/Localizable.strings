@@ -1,0 +1,36 @@
+/* Popover */
+"History" = "Historial";
+"Memory" = "Memoria";
+"Models" = "Modelos";
+"Models are loaded in more than one backend. Watch your RAM." = "Hay modelos cargados en más de un backend. Ojo con la RAM.";
+"Swap almost full (%@). The system will slow down." = "Swap casi lleno (%@). El sistema va a ir lento.";
+"In use" = "En uso";
+"Compressed" = "Comprimida";
+"Restart router" = "Reiniciar router";
+"Quit" = "Salir";
+"last %lld s" = "últimos %lld s";
+
+/* Model details */
+"Status" = "Estado";
+"generating" = "generando";
+"idle" = "en espera";
+"Context" = "Contexto";
+"Busy slots" = "Slots ocupados";
+"Generation (avg)" = "Generación (media)";
+"Prompt (avg)" = "Prompt (media)";
+"Generated tokens" = "Tokens generados";
+"Prompt tokens" = "Tokens de prompt";
+"Process RAM" = "RAM del proceso";
+"Unloads" = "Se libera";
+
+/* Model list */
+"No backend is responding" = "Ningún backend responde";
+"No models" = "Sin modelos";
+"Load" = "Cargar";
+"Eject" = "Expulsar";
+"Load the model into memory" = "Cargar el modelo en memoria";
+"Free the memory used by the model" = "Liberar la memoria que usa el modelo";
+
+/* Language menu */
+"System" = "Sistema";
+"Language" = "Idioma";

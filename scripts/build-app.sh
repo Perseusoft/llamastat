@@ -12,6 +12,7 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 /bin/cp "$(swift build -c release --show-bin-path)/Llamastat" "$APP/Contents/MacOS/"
 /bin/cp Resources/Info.plist "$APP/Contents/"
+/bin/cp -R Resources/*.lproj "$APP/Contents/Resources/"
 codesign --force --sign - "$APP" >/dev/null
 echo "==> $APP"
 

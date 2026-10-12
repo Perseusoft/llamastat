@@ -14,7 +14,7 @@ struct Ring: View {
     var fraction: Double
     var color: Color
     var label: String
-    var caption: String
+    var caption: LocalizedStringKey
     var size: CGFloat = 64
     var lineWidth: CGFloat = 6
 
@@ -27,7 +27,7 @@ struct Ring: View {
                     .stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                     .animation(.easeOut(duration: 0.4), value: fraction)
-                Text(label)
+                Text(verbatim: label)
                     .font(.system(size: size * 0.2, weight: .medium, design: .rounded))
                     .monospacedDigit()
                     .minimumScaleFactor(0.6)
@@ -41,11 +41,15 @@ struct Ring: View {
 
 /// Centered small-caps divider: ─── TITLE ───
 struct SectionHeader: View {
-    var title: String
+    var title: Text
+    init(title: LocalizedStringKey) { self.title = Text(title) }
+    init(verbatim: String) { self.title = Text(verbatim: verbatim) }
+
     var body: some View {
         HStack(spacing: 8) {
             line
-            Text(title.uppercased())
+            title
+                .textCase(.uppercase)
                 .font(.system(size: 10, weight: .medium))
                 .tracking(1)
                 .foregroundStyle(.secondary)
@@ -60,7 +64,7 @@ struct SectionHeader: View {
 
 struct DetailRow: View {
     var color: Color?
-    var label: String
+    var label: LocalizedStringKey
     var value: String
 
     var body: some View {
@@ -68,7 +72,7 @@ struct DetailRow: View {
             if let color {
                 Circle().fill(color).frame(width: 8, height: 8)
             }
-            Text(label + ":")
+            Text(label) + Text(verbatim: ":")
             Spacer()
             Text(value).monospacedDigit().fontWeight(.medium)
         }
