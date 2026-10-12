@@ -1,0 +1,10 @@
+[Unit]
+Description=llama.cpp router (llama-server --models-preset)
+After=network.target
+
+[Service]
+ExecStart=__LLAMA_SERVER__ --models-preset __MODELS__/presets.ini --models-max 1 --jinja --host 127.0.0.1 --port 8080 -ngl 999 -c 32768 --sleep-idle-seconds 900
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

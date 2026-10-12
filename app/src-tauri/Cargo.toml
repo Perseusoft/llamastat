@@ -1,0 +1,40 @@
+[package]
+name = "llamastat"
+version = "0.2.0"
+description = "Local LLM monitor for the menu bar / system tray"
+edition = "2021"
+
+[lib]
+name = "llamastat_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png", "macos-private-api"] }
+sys-locale = "0.3"
+tauri-plugin-positioner = { version = "2", features = ["tray-icon"] }
+tauri-plugin-autostart = "2"
+tauri-plugin-single-instance = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+tokio = { version = "1", features = ["time", "sync", "macros"] }
+sysinfo = "0.37"
+tiny-skia = "0.11"
+futures = "0.3"
+log = "0.4"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+core-foundation = "0.10"
+io-kit-sys = "0.4"
+
+[target.'cfg(any(target_os = "linux", target_os = "windows"))'.dependencies]
+nvml-wrapper = "0.11"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

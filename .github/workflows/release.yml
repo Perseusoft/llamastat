@@ -1,0 +1,121 @@
+name: Release
+
+# Push a tag like v0.2.0 (or run manually) to build installers for every platform.
+# Artifacts go to a draft GitHub Release and, if the R2 secrets are set, to Cloudflare R2.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macos-universal
+            runner: macos-latest
+            target: universal-apple-darwin
+            rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
+          - name: linux-x64
+            runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+          - name: linux-arm64
+            runner: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+          - name: windows-x64
+            runner: windows-latest
+            target: x86_64-pc-windows-msvc
+          - name: windows-arm64
+            runner: windows-latest
+            target: aarch64-pc-windows-msvc
+            # MSI (WiX) can't target ARM64; NSIS can.
+            bundles: --bundles nsis
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-targets || matrix.target }}
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: app/src-tauri
+          key: ${{ matrix.target }}
+      - name: Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+      - run: npm ci
+        working-directory: app
+
+      - uses: tauri-apps/tauri-action@v0
+        id: tauri
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Optional macOS signing/notarization; without these the app is unsigned (see docs/RELEASE.md).
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          projectPath: app
+          args: --target ${{ matrix.target }} ${{ matrix.bundles }}
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+          releaseName: Llamastat ${{ github.ref_name }}
+          releaseDraft: true
+          prerelease: false
+
+      - name: Collect installers
+        shell: bash
+        run: |
+          mkdir -p dist-upload
+          bundle="app/src-tauri/target/${{ matrix.target }}/release/bundle"
+          find "$bundle" -maxdepth 2 -type f \( -name '*.dmg' -o -name '*.app.tar.gz' -o -name '*.deb' -o -name '*.rpm' \
+            -o -name '*.AppImage' -o -name '*.msi' -o -name '*-setup.exe' \) -exec cp {} dist-upload/ \;
+          ls -la dist-upload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: llamastat-${{ matrix.name }}
+          path: dist-upload/*
+
+  # Mirrors the installers to Cloudflare R2: releases/<version>/ and latest/.
+  r2:
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ vars.R2_BUCKET != '' }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Upload to R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          BUCKET: ${{ vars.R2_BUCKET }}
+          VERSION: ${{ github.ref_type == 'tag' && github.ref_name || format('dev-{0}', github.run_number) }}
+        run: |
+          ls -la artifacts
+          aws s3 cp artifacts "s3://$BUCKET/releases/$VERSION/" --recursive --endpoint-url "$ENDPOINT"
+          if [[ "$VERSION" == v* ]]; then
+            # Stable names for the README download links (version stripped from file names).
+            mkdir latest
+            for f in artifacts/*; do
+              name=$(basename "$f" | sed -E -e 's/_[0-9]+\.[0-9]+\.[0-9]+//' -e 's/-[0-9]+\.[0-9]+\.[0-9]+-[0-9]+//')
+              cp "$f" "latest/$name"
+            done
+            aws s3 sync latest "s3://$BUCKET/latest/" --delete --endpoint-url "$ENDPOINT"
+          fi

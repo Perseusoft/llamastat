@@ -1,0 +1,110 @@
+{
+  "backends": [
+    {
+      "kind": "llamaCpp",
+      "online": true,
+      "models": [
+        {
+          "id": "llama.cpp/Qwen3-8B",
+          "backend": "llamaCpp",
+          "name": "Qwen3-8B",
+          "state": "loaded",
+          "sizeBytes": 5027783488,
+          "stats": {
+            "promptTokensTotal": 52.0,
+            "predictedTokensTotal": 200.0,
+            "inFlightTokens": 456.0,
+            "promptTokensPerSecond": 21.329920546045965,
+            "predictedTokensPerSecond": 8.973237319694013,
+            "requestsProcessing": 2,
+            "contextSize": 32768,
+            "contextUsed": 43,
+            "slotsTotal": 4,
+            "slotsBusy": 2,
+            "vramBytes": null,
+            "expiresAt": null
+          }
+        },
+        {
+          "id": "llama.cpp/gpt-oss-20b",
+          "backend": "llamaCpp",
+          "name": "gpt-oss-20b",
+          "state": "unloaded",
+          "sizeBytes": 12109566624,
+          "stats": null
+        }
+      ]
+    },
+    {
+      "kind": "ollama",
+      "online": false,
+      "models": []
+    }
+  ],
+  "active": [
+    {
+      "info": {
+        "id": "llama.cpp/Qwen3-8B",
+        "backend": "llamaCpp",
+        "name": "Qwen3-8B",
+        "state": "loaded",
+        "sizeBytes": 5027783488,
+        "stats": {
+          "promptTokensTotal": 52.0,
+          "predictedTokensTotal": 200.0,
+          "inFlightTokens": 456.0,
+          "promptTokensPerSecond": 21.329920546045965,
+          "predictedTokensPerSecond": 8.973237319694013,
+          "requestsProcessing": 2,
+          "contextSize": 32768,
+          "contextUsed": 43,
+          "slotsTotal": 4,
+          "slotsBusy": 2,
+          "vramBytes": null,
+          "expiresAt": null
+        }
+      },
+      "processRam": 9803677696,
+      "cpu": 0.04213647842407227,
+      "generationRate": 14.811548752504423,
+      "promptRate": 0.0,
+      "busy": true
+    }
+  ],
+  "memory": {
+    "total": 25769803776,
+    "used": 22966288384,
+    "swapUsed": 13297057792,
+    "swapTotal": 13958643712
+  },
+  "gpu": {
+    "name": "Apple GPU",
+    "utilization": 0.95,
+    "memoryUsed": 11071930368,
+    "memoryTotal": null
+  },
+  "history": [
+    {
+      "time": 1791823053920,
+      "generationRate": 0.0,
+      "promptRate": 0.0,
+      "gpu": 0.96,
+      "memory": 0.8891855875651041,
+      "swap": 13175422976
+    },
+    {
+      "time": 1791823055273,
+      "generationRate": 14.811548752504423,
+      "promptRate": 0.0,
+      "gpu": 0.95,
+      "memory": 0.8912092844645182,
+      "swap": 13297057792
+    }
+  ],
+  "generationRate": 14.811548752504423,
+  "generating": true,
+  "contextFraction": 0.001312255859375,
+  "pending": [],
+  "lastError": null,
+  "platform": "macos"
+}
