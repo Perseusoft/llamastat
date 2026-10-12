@@ -47,7 +47,9 @@ final class LlamaCppBackend: ModelBackend {
 
     private func stats(for model: String) async -> ModelStats {
         var stats = ModelStats()
-        let query = [URLQueryItem(name: "model", value: model)]
+        // The router autoloads a model on any request naming it; without this, polling
+        // stats right after an eject loads the model straight back.
+        let query = [URLQueryItem(name: "model", value: model), URLQueryItem(name: "autoload", value: "false")]
 
         if let data = try? await HTTP.get(baseURL.appending(path: "metrics").appending(queryItems: query)) {
             let metrics = Prometheus.parse(String(decoding: data, as: UTF8.self))
