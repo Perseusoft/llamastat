@@ -7,6 +7,9 @@ struct StatusLabel: View {
     var settings: AppSettings
 
     var body: some View {
+        // ImageRenderer evaluates the content outside this body, so Observation can't see what it
+        // reads. Touch the inputs here so the label re-renders on every tick and settings change.
+        let _ = (settings.widgets, settings.icon, settings.tokensOnlyWhileGenerating, monitor.history.last?.time)
         let content = StatusContent(monitor: monitor, settings: settings, colored: settings.coloredMenuBar)
         if let image = render(content) {
             Image(nsImage: image)

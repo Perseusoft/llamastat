@@ -102,9 +102,14 @@ final class AppSettings {
         .init(widget: .context, enabled: false),
     ]
 
-    private let defaults = UserDefaults.standard
+    /// False for throwaway copies (screenshots) so they never touch the user's saved settings.
+    private let persists: Bool
 
-    private init() {
+    /// A non-persisting copy, for previews.
+    static func scratch() -> AppSettings { AppSettings(persists: false) }
+
+    private init(persists: Bool = true) {
+        self.persists = persists
         widgets = Self.load("widgets") ?? Self.defaultWidgets
         icon = Self.load("icon") ?? .llama
         coloredMenuBar = Self.load("coloredMenuBar") ?? false
@@ -136,7 +141,8 @@ final class AppSettings {
     }
 
     private func save<T: Encodable>(_ value: T, _ key: String) {
-        defaults.set(try? JSONEncoder().encode(value), forKey: "settings.\(key)")
+        guard persists else { return }
+        UserDefaults.standard.set(try? JSONEncoder().encode(value), forKey: "settings.\(key)")
     }
 
     private static func load<T: Decodable>(_ key: String) -> T? {

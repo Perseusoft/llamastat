@@ -70,8 +70,7 @@ enum Snapshot {
             let settings = AppSettings.shared
             // Menu bar items with every widget on, monochrome and colored, on light and dark bars.
             let allWidgets = MenuBarWidget.allCases.map { WidgetSetting(widget: $0, enabled: true) }
-            let previewSettings = settings
-            let saved = (previewSettings.widgets, previewSettings.tokensOnlyWhileGenerating)
+            let previewSettings = AppSettings.scratch()
             previewSettings.widgets = allWidgets
             previewSettings.tokensOnlyWhileGenerating = false
             let bars = VStack(alignment: .leading, spacing: 6) {
@@ -91,7 +90,6 @@ enum Snapshot {
                let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
                 try? png.write(to: url.deletingPathExtension().appendingPathExtension("menubar.png"))
             }
-            (previewSettings.widgets, previewSettings.tokensOnlyWhileGenerating) = saved
 
             let view = PopoverView()
                 .environment(monitor)
