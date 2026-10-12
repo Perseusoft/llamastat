@@ -1,2 +1,4 @@
 *.gguf
 .DS_Store
+.build/
+build/

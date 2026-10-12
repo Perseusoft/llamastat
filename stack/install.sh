@@ -1,5 +1,5 @@
 #!/bin/bash
-# Enlaza este repo en el sistema: presets, LaunchAgent del router y plugin de xbar.
+# Enlaza este repo en el sistema: presets y LaunchAgent del router.
 # Idempotente: se puede correr de nuevo tras cambiar algo.
 set -e
 
@@ -13,8 +13,8 @@ mkdir -p "$HOME/models" "$HOME/Library/Logs/llama-router" "$XBAR"
 echo "==> presets.ini -> ~/models/presets.ini"
 ln -sfn "$REPO/models/presets.ini" "$HOME/models/presets.ini"
 
-echo "==> plugin xbar"
-ln -sfn "$REPO/xbar/llamacpp.10s.sh" "$XBAR/llamacpp.10s.sh"
+
+# Llamastat reemplaza al plugin; para usarlo igual: ln -sfn "$REPO/xbar/llamacpp.10s.sh" "$XBAR/"
 
 # launchd no lee bien plists symlinkeados: se copia
 echo "==> LaunchAgent $LABEL"
