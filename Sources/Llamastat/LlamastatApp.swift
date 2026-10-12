@@ -16,6 +16,7 @@ struct LlamastatApp: App {
             PopoverView()
                 .environment(monitor)
                 .environment(settings)
+                .fitWindowToContent()
         } label: {
             StatusLabel(monitor: monitor, settings: settings)
                 .task { monitor.start() }
