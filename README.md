@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Perseusoft/llamastat/releases/latest"><b>⬇ Download</b></a> ·
+  <a href="https://llamastat.perseusoft.tech"><b>⬇ Download</b></a> ·
   <a href="#install">Install</a> ·
   <a href="#set-up-a-backend">Set up a backend</a> ·
   <a href="#build-from-source">Build</a> ·
@@ -51,7 +51,7 @@ Llamastat keeps the important numbers one glance away:
 
 ## Install
 
-Download the installer for your system from the **[latest release](https://github.com/Perseusoft/llamastat/releases/latest)**:
+Download the installer for your system from **[llamastat.perseusoft.tech](https://llamastat.perseusoft.tech)** (or the [latest GitHub release](https://github.com/Perseusoft/llamastat/releases/latest)):
 
 | System | Architectures | File |
 |---|---|---|
@@ -86,9 +86,9 @@ Needs WebView2, which ships with Windows 10 (21H2+) and 11; the installer adds i
 
 ```bash
 # Debian / Ubuntu
-sudo apt install ./llamastat_<version>_amd64.deb      # or _arm64.deb
+sudo apt install ./Llamastat_<version>_amd64.deb      # or _arm64.deb
 # Fedora / openSUSE
-sudo dnf install ./llamastat-<version>-1.x86_64.rpm   # or .aarch64.rpm
+sudo dnf install ./Llamastat-<version>-1.x86_64.rpm   # or .aarch64.rpm
 # Any distro
 chmod +x Llamastat_<version>_amd64.AppImage && ./Llamastat_<version>_amd64.AppImage
 ```

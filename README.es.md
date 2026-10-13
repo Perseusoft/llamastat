@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Perseusoft/llamastat/releases/latest"><b>⬇ Descargar</b></a> ·
+  <a href="https://llamastat.perseusoft.tech"><b>⬇ Descargar</b></a> ·
   <a href="#instalación">Instalación</a> ·
   <a href="#configurar-un-backend">Backends</a> ·
   <a href="#compilar">Compilar</a> ·
@@ -50,7 +50,7 @@ vistazo:
 
 ## Instalación
 
-Descarga el instalador desde el **[último release](https://github.com/Perseusoft/llamastat/releases/latest)**:
+Descarga el instalador desde **[llamastat.perseusoft.tech](https://llamastat.perseusoft.tech)** (o del [último release en GitHub](https://github.com/Perseusoft/llamastat/releases/latest)):
 
 | Sistema | Arquitecturas | Archivo |
 |---|---|---|

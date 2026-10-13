@@ -57,17 +57,34 @@ jobs:
       - run: npm ci
         working-directory: app
 
-      - uses: tauri-apps/tauri-action@v0
-        id: tauri
+      # Optional macOS signing/notarization (see docs/RELEASE.md). Only exported when the secrets exist:
+      # tauri tries to import the certificate as soon as APPLE_CERTIFICATE is set, even if it's empty,
+      # and the build dies with "failed to import keychain certificate".
+      - name: macOS signing secrets
+        if: runner.os == 'macOS'
+        shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Optional macOS signing/notarization; without these the app is unsigned (see docs/RELEASE.md).
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          for v in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            if [ -n "${!v}" ]; then
+              { echo "$v<<__EOF__"; echo "${!v}"; echo "__EOF__"; } >> "$GITHUB_ENV"
+              echo "$v: set"
+            else
+              echo "$v: not set"
+            fi
+          done
+          [ -n "$APPLE_CERTIFICATE" ] || echo "No certificate: the .dmg will be unsigned."
+
+      - uses: tauri-apps/tauri-action@v0
+        id: tauri
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: app
           args: --target ${{ matrix.target }} ${{ matrix.bundles }}
@@ -89,7 +106,10 @@ jobs:
           name: llamastat-${{ matrix.name }}
           path: dist-upload/*
 
-  # Mirrors the installers to Cloudflare R2: releases/<version>/ and latest/.
+  # Mirrors the installers to Cloudflare R2 (the same bucket/domain Astral uses, under its own prefix):
+  #   llamastat-releases/<version>/   versioned files
+  #   llamastat-releases/latest/      same files without the version (stable download links)
+  #   llamastat-releases/latest.json  manifest read by the download page
   r2:
     needs: build
     runs-on: ubuntu-latest
@@ -106,16 +126,53 @@ jobs:
           AWS_DEFAULT_REGION: auto
           ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
           BUCKET: ${{ vars.R2_BUCKET }}
+          PREFIX: ${{ vars.R2_PREFIX || 'llamastat-releases' }}
+          PUBLIC_URL: ${{ vars.R2_PUBLIC_URL || 'https://downloads.perseusoft.tech' }}
           VERSION: ${{ github.ref_type == 'tag' && github.ref_name || format('dev-{0}', github.run_number) }}
         run: |
           ls -la artifacts
-          aws s3 cp artifacts "s3://$BUCKET/releases/$VERSION/" --recursive --endpoint-url "$ENDPOINT"
+          count=$(find artifacts -type f | wc -l)
+          [ "$count" -gt 0 ] || { echo "::error::no installers to upload"; exit 1; }
+          # Force a download instead of an inline preview, whatever the browser sniffs.
+          for f in artifacts/*; do
+            aws s3 cp "$f" "s3://$BUCKET/$PREFIX/$VERSION/$(basename "$f")" --endpoint-url "$ENDPOINT" \
+              --content-disposition "attachment; filename=\"$(basename "$f")\""
+          done
           if [[ "$VERSION" == v* ]]; then
-            # Stable names for the README download links (version stripped from file names).
+            # Stable names for download links: drop the version from file names.
             mkdir latest
             for f in artifacts/*; do
               name=$(basename "$f" | sed -E -e 's/_[0-9]+\.[0-9]+\.[0-9]+//' -e 's/-[0-9]+\.[0-9]+\.[0-9]+-[0-9]+//')
               cp "$f" "latest/$name"
             done
-            aws s3 sync latest "s3://$BUCKET/latest/" --delete --endpoint-url "$ENDPOINT"
+            for f in latest/*; do
+              aws s3 cp "$f" "s3://$BUCKET/$PREFIX/latest/$(basename "$f")" --endpoint-url "$ENDPOINT" \
+                --content-disposition "attachment; filename=\"$(basename "$f")\""
+            done
+            # Manifest for the download page: version, date and one URL per installer.
+            python3 - <<'PY' > latest.json
+          import json, os, datetime
+          base = f"{os.environ['PUBLIC_URL']}/{os.environ['PREFIX']}/{os.environ['VERSION']}"
+          files = sorted(os.listdir("artifacts"))
+          def pick(*parts):
+              for f in files:
+                  if all(p in f for p in parts): return f"{base}/{f}"
+          assets = {
+              "macos_universal_dmg": pick("universal", ".dmg"),
+              "windows_x64_exe": pick("x64-setup.exe"), "windows_x64_msi": pick("x64", ".msi"),
+              "windows_arm64_exe": pick("arm64-setup.exe"),
+              "linux_x64_appimage": pick("amd64.AppImage"), "linux_x64_deb": pick("amd64.deb"), "linux_x64_rpm": pick("x86_64.rpm"),
+              "linux_arm64_appimage": pick("aarch64.AppImage"), "linux_arm64_deb": pick("arm64.deb"), "linux_arm64_rpm": pick("aarch64.rpm"),
+          }
+          print(json.dumps({
+              "version": os.environ["VERSION"],
+              "date": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "base_url": base,
+              "files": [f"{base}/{f}" for f in files],
+              "assets": {k: v for k, v in assets.items() if v},
+          }, indent=2))
+          PY
+            cat latest.json
+            aws s3 cp latest.json "s3://$BUCKET/$PREFIX/latest.json" --endpoint-url "$ENDPOINT" \
+              --content-type application/json --cache-control "max-age=300"
           fi
