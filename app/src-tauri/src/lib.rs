@@ -173,18 +173,27 @@ fn show_settings(app: &AppHandle) {
 
 // MARK: tray
 
+/// Tray menu labels. English is the fallback; keep the language list in sync with `lib/i18n.ts`.
 fn tr(state: &AppState, key: &str) -> &'static str {
     let lang = state.settings.lock().unwrap().language.clone()
         .or_else(sys_locale::get_locale)
-        .unwrap_or_default();
-    let es = lang.starts_with("es");
-    match (key, es) {
-        ("panel", true) => "Abrir panel",
-        ("panel", false) => "Open panel",
-        ("settings", true) => "Ajustes…",
-        ("settings", false) => "Settings…",
-        ("quit", true) => "Salir",
-        ("quit", false) => "Quit",
+        .unwrap_or_default()
+        .to_lowercase();
+    let lang = lang.get(..2).unwrap_or("en");
+    let (panel, settings, quit) = match lang {
+        "es" => ("Abrir panel", "Ajustes…", "Salir"),
+        "pt" => ("Abrir painel", "Configurações…", "Sair"),
+        "fr" => ("Ouvrir le panneau", "Réglages…", "Quitter"),
+        "de" => ("Panel öffnen", "Einstellungen…", "Beenden"),
+        "it" => ("Apri il pannello", "Impostazioni…", "Esci"),
+        "zh" => ("打开面板", "设置…", "退出"),
+        "ja" => ("パネルを開く", "設定…", "終了"),
+        _ => ("Open panel", "Settings…", "Quit"),
+    };
+    match key {
+        "panel" => panel,
+        "settings" => settings,
+        "quit" => quit,
         _ => "",
     }
 }

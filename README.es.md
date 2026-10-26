@@ -46,7 +46,7 @@ vistazo:
 | **Dashboard** | Gráficas de 5 min de RAM, tokens/s, GPU y swap. |
 | **Backends** | llama.cpp en modo router (estadísticas completas) y Ollama (memoria, contexto, keep-alive). |
 | **GPU** | Apple Silicon (IOKit), NVIDIA (NVML) en Windows/Linux, AMD en Linux (sysfs). |
-| **Idiomas** | Español e inglés; sigue al sistema o se elige en Ajustes. |
+| **Idiomas** | Inglés (por defecto), español, portugués, francés, alemán, italiano, chino y japonés; sigue al sistema o se elige en Ajustes. |
 
 ## Instalación
 

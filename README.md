@@ -46,7 +46,7 @@ Llamastat keeps the important numbers one glance away:
 | **Dashboard** | 5-minute charts for RAM, tokens/s, GPU and swap. |
 | **Backends** | llama.cpp router mode (full stats) and Ollama (memory, context, keep-alive). Configurable URLs. |
 | **GPU** | Apple Silicon (IOKit), NVIDIA (NVML) on Windows/Linux, AMD on Linux (sysfs). |
-| **Languages** | English and Spanish; follows the system or pick one in Settings. |
+| **Languages** | English (default), Spanish, Portuguese, French, German, Italian, Chinese and Japanese; follows the system or pick one in Settings. |
 | **Small** | Rust core + the system webview ([Tauri](https://tauri.app)). No Electron. |
 
 ## Install
