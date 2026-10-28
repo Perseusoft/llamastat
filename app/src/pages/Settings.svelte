@@ -213,6 +213,13 @@
 
       {:else if page === "general"}
         <section class="card">
+          <label class="field">{t("Appearance")}
+            <select value={settings.theme} onchange={(e) => set((x) => (x.theme = e.currentTarget.value as Settings["theme"]))}>
+              <option value="system">{t("System")}</option>
+              <option value="light">{t("Light")}</option>
+              <option value="dark">{t("Dark")}</option>
+            </select>
+          </label>
           <label class="field">{t("Language")}
             <select value={settings.language ?? ""} onchange={(e) => set((x) => (x.language = e.currentTarget.value || null))}>
               {#each languages as l}<option value={l.code ?? ""}>{l.code ? l.name : t(l.name)}</option>{/each}

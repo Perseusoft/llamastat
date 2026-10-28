@@ -75,6 +75,7 @@ fn set_settings(app: AppHandle, state: Shared, settings: Settings) -> Result<(),
     *state.settings.lock().unwrap() = settings.clone();
     update_tray(&state, &state.monitor.snapshot());
     rebuild_menu(&app, &state);
+    apply_theme(&app, &settings);
     app.emit("settings", &settings).map_err(|e| e.to_string())
 }
 
@@ -196,6 +197,15 @@ fn quit(app: AppHandle) {
 
 // MARK: windows
 
+/// The web UI switches its own colors from the settings; this keeps the native parts in step.
+fn apply_theme(app: &AppHandle, settings: &Settings) {
+    for name in [PANEL, SETTINGS] {
+        if let Some(window) = app.get_webview_window(name) {
+            let _ = window.set_theme(settings.theme.native());
+        }
+    }
+}
+
 fn position_panel(window: &WebviewWindow) {
     // Linux trays don't report their position, and Windows' taskbar is usually at the bottom.
     let position = if cfg!(target_os = "macos") {
@@ -221,9 +231,10 @@ fn toggle_panel(app: &AppHandle) {
     }
 }
 
-fn create_panel(app: &AppHandle) -> tauri::Result<()> {
+fn create_panel(app: &AppHandle, theme: Option<tauri::Theme>) -> tauri::Result<()> {
     let window = WebviewWindowBuilder::new(app, PANEL, WebviewUrl::App("index.html#panel".into()))
         .title("Llamastat")
+        .theme(theme)
         .inner_size(PANEL_WIDTH, 560.0)
         .decorations(false)
         .transparent(true)
@@ -244,6 +255,7 @@ fn create_panel(app: &AppHandle) -> tauri::Result<()> {
 
 /// `page` is a Settings tab ("models", "backends"…): a new window opens on it, an existing one switches.
 fn show_settings(app: &AppHandle, page: Option<&str>) {
+    let theme = app.try_state::<Arc<AppState>>().map(|s| s.settings.lock().unwrap().theme.native()).unwrap_or(None);
     if let Some(panel) = app.get_webview_window(PANEL) {
         let _ = panel.hide();
     }
@@ -262,6 +274,7 @@ fn show_settings(app: &AppHandle, page: Option<&str>) {
     };
     let _ = WebviewWindowBuilder::new(app, SETTINGS, WebviewUrl::App(url.into()))
         .title("Llamastat")
+        .theme(theme)
         .inner_size(860.0, 620.0)
         .min_inner_size(720.0, 480.0)
         .center()
@@ -389,7 +402,8 @@ pub fn run() {
             });
             app.manage(Arc::clone(&state));
             create_tray(app.handle(), &state)?;
-            create_panel(app.handle())?;
+            let theme = state.settings.lock().unwrap().theme.native();
+            create_panel(app.handle(), theme)?;
             if std::env::args().any(|a| a == "--open-settings") {
                 show_settings(app.handle(), None);
             }

@@ -66,7 +66,10 @@ export type Widget = "icon" | "tokensPerSecond" | "model" | "ram" | "gpu" | "con
 export type TrayIcon = "llama" | "chip" | "bolt" | "dot";
 export type Section = "rings" | "warnings" | "history" | "models" | "memory" | "modelList";
 
+export type Theme = "system" | "light" | "dark";
+
 export interface Settings {
+  theme: Theme;
   widgets: { widget: Widget; enabled: boolean }[];
   icon: TrayIcon;
   colored: boolean;

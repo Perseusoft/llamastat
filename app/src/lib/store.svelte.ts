@@ -10,8 +10,9 @@ class Store {
   async start() {
     this.snapshot = await api.snapshot();
     this.settings = await api.settings();
+    applyTheme(this.settings);
     await api.onSnapshot((s) => (this.snapshot = s));
-    await api.onSettings((s) => (this.settings = s));
+    await api.onSettings((s) => { this.settings = s; applyTheme(s); });
     await api.onInstall((p) => (this.installs = { ...this.installs, [p.id]: p }));
   }
 
@@ -26,12 +27,20 @@ class Store {
     const next: Settings = JSON.parse(JSON.stringify(this.settings));
     change(next);
     this.settings = next;
+    applyTheme(next);
     await api.saveSettings(next);
   }
 
   isVisible(section: Settings["hiddenSections"][number]) {
     return !this.settings?.hiddenSections.includes(section);
   }
+}
+
+/// `system` removes the attribute so the CSS media query decides; the Rust side sets the native theme.
+function applyTheme(settings: Settings) {
+  const root = document.documentElement;
+  if (settings.theme === "system") delete root.dataset.theme;
+  else root.dataset.theme = settings.theme;
 }
 
 export const store = new Store();

@@ -44,9 +44,31 @@ pub enum TrayIcon {
     Dot,
 }
 
+/// Appearance of the windows. The tray icon is unaffected: it follows the menu bar.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Theme {
+    #[default]
+    System,
+    Light,
+    Dark,
+}
+
+impl Theme {
+    /// What to tell the OS window (title bar, scrollbars, native controls). None = follow the system.
+    pub fn native(self) -> Option<tauri::Theme> {
+        match self {
+            Theme::System => None,
+            Theme::Light => Some(tauri::Theme::Light),
+            Theme::Dark => Some(tauri::Theme::Dark),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
+    pub theme: Theme,
     pub widgets: Vec<WidgetSetting>,
     pub icon: TrayIcon,
     pub colored: bool,
@@ -70,6 +92,7 @@ impl Default for Settings {
     fn default() -> Self {
         let on = [Widget::Icon, Widget::TokensPerSecond, Widget::Model];
         Self {
+            theme: Theme::System,
             widgets: Widget::ALL.iter().map(|&w| WidgetSetting { widget: w, enabled: on.contains(&w) }).collect(),
             icon: TrayIcon::Llama,
             colored: false,

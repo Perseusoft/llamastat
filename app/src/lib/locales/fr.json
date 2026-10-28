@@ -98,5 +98,8 @@
   "{0} downloads": "{0} téléchargements",
   "Ollama pulls from its library; llama.cpp downloads a GGUF from Hugging Face into your models folder.": "Ollama télécharge depuis sa bibliothèque ; llama.cpp télécharge un GGUF depuis Hugging Face dans votre dossier de modèles.",
   "The router only reads presets.ini when it starts. Restart it to apply the change.": "Le routeur ne lit presets.ini qu'au démarrage. Redémarrez-le pour appliquer le changement.",
-  "Can't find the router's presets.ini. Set it in Settings → Backends.": "Impossible de trouver le presets.ini du routeur. Indiquez-le dans Réglages → Backends."
+  "Can't find the router's presets.ini. Set it in Settings → Backends.": "Impossible de trouver le presets.ini du routeur. Indiquez-le dans Réglages → Backends.",
+  "Appearance": "Apparence",
+  "Light": "Clair",
+  "Dark": "Sombre"
 }
