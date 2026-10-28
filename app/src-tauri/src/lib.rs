@@ -1,6 +1,8 @@
 mod backends;
+mod installer;
 mod model;
 mod monitor;
+mod presets;
 mod settings;
 mod system;
 pub mod tray;
@@ -14,7 +16,8 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, Tray
 use tauri::{AppHandle, Emitter, LogicalSize, Manager, State, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent};
 use tauri_plugin_positioner::{Position, WindowExt};
 
-use model::{BackendKind, Snapshot};
+use installer::{HfFile, HfRepo, InstallProgress, InstallSource, Installer, RouterPaths, RouterTarget};
+use model::{BackendKind, ModelState, Snapshot};
 use monitor::Monitor;
 use settings::Settings;
 
@@ -24,9 +27,32 @@ const PANEL_WIDTH: f64 = 320.0;
 
 struct AppState {
     monitor: Monitor,
+    installer: Installer,
     settings: Mutex<Settings>,
     settings_path: PathBuf,
     tray: Mutex<Option<TrayIcon>>,
+}
+
+impl AppState {
+    /// Settings override first, then the running router's `--models-preset`, then `~/models/presets.ini`.
+    fn router_target(&self, app: &AppHandle) -> RouterTarget {
+        let settings = self.settings.lock().unwrap().clone();
+        let presets = settings.llama_cpp_presets.as_deref().map(str::trim).filter(|p| !p.is_empty()).map(PathBuf::from)
+            .or_else(|| self.monitor.router_presets().map(PathBuf::from))
+            .or_else(|| {
+                let default = app.path().home_dir().ok()?.join("models").join("presets.ini");
+                default.is_file().then_some(default)
+            });
+        let models_dir = presets.as_ref()
+            .and_then(|p| std::fs::read_to_string(p).ok())
+            .and_then(|text| presets::models_dir(&text));
+        RouterTarget {
+            llama_cpp_url: settings.llama_cpp_url.trim().trim_end_matches('/').to_string(),
+            ollama_url: settings.ollama_url.trim().trim_end_matches('/').to_string(),
+            presets,
+            models_dir,
+        }
+    }
 }
 
 type Shared<'a> = State<'a, Arc<AppState>>;
@@ -85,8 +111,72 @@ fn restart_router(state: Shared) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn open_settings(app: AppHandle) {
-    show_settings(&app);
+fn open_settings(app: AppHandle, page: Option<String>) {
+    show_settings(&app, page.as_deref());
+}
+
+// MARK: model management
+
+#[tauri::command]
+async fn search_models(state: Shared<'_>, query: String) -> Result<Vec<HfRepo>, String> {
+    state.installer.search(query.trim()).await
+}
+
+#[tauri::command]
+async fn model_files(state: Shared<'_>, repo: String) -> Result<Vec<HfFile>, String> {
+    state.installer.files(repo.trim()).await
+}
+
+/// Starts an install in the background; progress arrives as `install` events.
+#[tauri::command]
+fn install_model(app: AppHandle, state: Shared, source: InstallSource) {
+    let router = state.router_target(&app);
+    let state = Arc::clone(&state);
+    tauri::async_runtime::spawn(async move {
+        let handle = app.clone();
+        state.installer.install(source, router, move |p: InstallProgress| { let _ = handle.emit("install", &p); }).await;
+        let settings = state.settings.lock().unwrap().clone();
+        let snapshot = state.monitor.tick(&settings).await;
+        let _ = app.emit("snapshot", &snapshot);
+    });
+}
+
+#[tauri::command]
+fn cancel_install(state: Shared, id: String) {
+    state.installer.cancel(&id);
+}
+
+#[tauri::command]
+async fn remove_model(app: AppHandle, state: Shared<'_>, backend: BackendKind, name: String) -> Result<(), String> {
+    let router = state.router_target(&app);
+    let id = format!("{}/{}", backend.label(), name);
+    let progress = |status: &str, error: Option<String>| InstallProgress {
+        id: id.clone(), backend, name: name.clone(), status: status.into(), completed: 0, total: None, done: status != "removing", error,
+    };
+    let _ = app.emit("install", progress("removing", None));
+    let (path, loaded) = state.monitor.snapshot().backends.iter()
+        .flat_map(|b| b.models.iter())
+        .find(|m| m.backend == backend && m.name == name)
+        .map(|m| (m.path.clone(), m.state != ModelState::Unloaded))
+        .unwrap_or((None, false));
+    let result = state.installer.remove(backend, &name, path.as_deref(), loaded, &router).await;
+    let _ = app.emit("install", match &result {
+        Ok(()) => progress("removed", None),
+        Err(e) => progress("error", Some(e.clone())),
+    });
+    let settings = state.settings.lock().unwrap().clone();
+    let snapshot = state.monitor.tick(&settings).await;
+    let _ = app.emit("snapshot", &snapshot);
+    result
+}
+
+#[tauri::command]
+fn router_paths(app: AppHandle, state: Shared) -> RouterPaths {
+    let target = state.router_target(&app);
+    RouterPaths {
+        presets: target.presets.map(|p| p.to_string_lossy().into_owned()),
+        models_dir: target.models_dir.map(|p| p.to_string_lossy().into_owned()),
+    }
 }
 
 /// The panel measures its content and asks for exactly that height (no leftover space).
@@ -152,7 +242,8 @@ fn create_panel(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
-fn show_settings(app: &AppHandle) {
+/// `page` is a Settings tab ("models", "backends"…): a new window opens on it, an existing one switches.
+fn show_settings(app: &AppHandle, page: Option<&str>) {
     if let Some(panel) = app.get_webview_window(PANEL) {
         let _ = panel.hide();
     }
@@ -160,9 +251,16 @@ fn show_settings(app: &AppHandle) {
         let _ = window.show();
         let _ = window.unminimize();
         let _ = window.set_focus();
+        if let Some(page) = page {
+            let _ = app.emit("open-page", page);
+        }
         return;
     }
-    let _ = WebviewWindowBuilder::new(app, SETTINGS, WebviewUrl::App("index.html#settings".into()))
+    let url = match page {
+        Some(page) if page.chars().all(|c| c.is_ascii_alphanumeric()) => format!("index.html#settings/{page}"),
+        _ => "index.html#settings".to_string(),
+    };
+    let _ = WebviewWindowBuilder::new(app, SETTINGS, WebviewUrl::App(url.into()))
         .title("Llamastat")
         .inner_size(860.0, 620.0)
         .min_inner_size(720.0, 480.0)
@@ -225,7 +323,7 @@ fn create_tray(app: &AppHandle, state: &Arc<AppState>) -> tauri::Result<()> {
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {
             "panel" => toggle_panel(app),
-            "settings" => show_settings(app),
+            "settings" => show_settings(app, None),
             "quit" => app.exit(0),
             _ => {}
         })
@@ -269,11 +367,12 @@ pub fn print_snapshot(settings_path: Option<PathBuf>) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _, _| show_settings(app)))
+        .plugin(tauri_plugin_single_instance::init(|app, _, _| show_settings(app, None)))
         .plugin(tauri_plugin_positioner::init())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
         .invoke_handler(tauri::generate_handler![
-            get_snapshot, get_settings, set_settings, toggle_model, restart_router, open_settings, fit_panel, quit
+            get_snapshot, get_settings, set_settings, toggle_model, restart_router, open_settings, fit_panel, quit,
+            search_models, model_files, install_model, cancel_install, remove_model, router_paths,
         ])
         .setup(|app| {
             // Menu bar / tray app: no Dock icon.
@@ -283,6 +382,7 @@ pub fn run() {
             let settings_path = app.path().app_config_dir()?.join("settings.json");
             let state = Arc::new(AppState {
                 monitor: Monitor::new(),
+                installer: Installer::new(),
                 settings: Mutex::new(Settings::load(&settings_path)),
                 settings_path,
                 tray: Mutex::new(None),
@@ -291,7 +391,7 @@ pub fn run() {
             create_tray(app.handle(), &state)?;
             create_panel(app.handle())?;
             if std::env::args().any(|a| a == "--open-settings") {
-                show_settings(app.handle());
+                show_settings(app.handle(), None);
             }
 
             let handle = app.handle().clone();

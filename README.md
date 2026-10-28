@@ -36,6 +36,7 @@ Llamastat keeps the important numbers one glance away:
 - **Will it fit in memory?** RAM of the model process, system RAM, swap and GPU memory, with a warning when swap is
   almost full or when two backends have models loaded at the same time (the classic "why is everything frozen").
 - **Free memory without a terminal.** Load and eject models from the panel.
+- **Install and remove models.** Settings → Models pulls Ollama models by name and downloads GGUFs from Hugging Face into your llama.cpp models folder (it adds the preset for you); Remove deletes the model and its preset.
 
 ## Features
 
@@ -43,6 +44,7 @@ Llamastat keeps the important numbers one glance away:
 |---|---|
 | **Tray / menu bar item** | Pick what to show and in which order: icon, tokens/s, loaded model, RAM %, GPU %, context %, RAM bar, tokens/s graph. Monochrome or colored. |
 | **Panel** | Gauges for RAM, tokens/s and GPU, 2-minute history, details for each loaded model, memory, model list with **Load / Eject**. Choose which sections appear. |
+| **Models** | Install (Ollama pull, or a GGUF from Hugging Face for the llama.cpp router) and remove models, with progress and cancel. The router re-reads its presets on restart, so the page offers **Restart router** after a change. |
 | **Dashboard** | 5-minute charts for RAM, tokens/s, GPU and swap. |
 | **Backends** | llama.cpp router mode (full stats) and Ollama (memory, context, keep-alive). Configurable URLs. |
 | **GPU** | Apple Silicon (IOKit), NVIDIA (NVML) on Windows/Linux, AMD on Linux (sysfs). |

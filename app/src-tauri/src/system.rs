@@ -57,6 +57,15 @@ impl SystemStats {
         Some(ProcessSample { ram: process.memory(), cpu: process.cpu_usage() as f64 / 100.0 })
     }
 
+    /// Value following `--flag` in the argv of the first `exe` process (e.g. the router's `--models-preset`).
+    pub fn flag_value(&self, exe: &str, flag: &str) -> Option<String> {
+        self.sys.processes().values().find_map(|p| {
+            let name = p.name().to_string_lossy();
+            if name != exe && name != format!("{exe}.exe") { return None; }
+            p.cmd().windows(2).find(|w| w[0] == OsStr::new(flag)).map(|w| w[1].to_string_lossy().into_owned())
+        })
+    }
+
     #[allow(dead_code)]
     pub fn process(&self, pid: u32) -> Option<ProcessSample> {
         let p = self.sys.process(Pid::from_u32(pid))?;

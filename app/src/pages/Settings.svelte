@@ -1,9 +1,10 @@
 <script lang="ts">
   import { getVersion } from "@tauri-apps/api/app";
   import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
-  import { backendLabel, type Section, type Settings, type TrayIcon, type Widget } from "../lib/api";
+  import { api, backendLabel, type Section, type Settings, type TrayIcon, type Widget } from "../lib/api";
   import AreaChart from "../lib/components/AreaChart.svelte";
   import ModelDetails from "../lib/components/ModelDetails.svelte";
+  import ModelManager from "../lib/components/ModelManager.svelte";
   import Ring from "../lib/components/Ring.svelte";
   import TrayPreview from "../lib/components/TrayPreview.svelte";
   import { ICONS } from "../lib/icons";
@@ -11,8 +12,12 @@
   import { languages, t } from "../lib/i18n";
   import { store } from "../lib/store.svelte";
 
-  type Page = "dashboard" | "tray" | "panel" | "backends" | "general";
-  let page = $state<Page>("dashboard");
+  type Page = "dashboard" | "tray" | "panel" | "models" | "backends" | "general";
+  const PAGES: Page[] = ["dashboard", "tray", "panel", "models", "backends", "general"];
+  const asPage = (p: string | undefined) => PAGES.find((x) => x === p);
+  // The Rust side opens index.html#settings/<page>, or sends "open-page" if the window already exists.
+  let page = $state<Page>(asPage(location.hash.split("/")[1]) ?? "dashboard");
+  api.onOpenPage((p) => { const next = asPage(p); if (next) page = next; });
   let launchAtLogin = $state(false);
   let dragging = $state<number | null>(null);
 
@@ -28,6 +33,7 @@
     { id: "dashboard", title: t("Dashboard"), icon: "▦" },
     { id: "tray", title: isMac ? t("Menu bar") : t("Tray"), icon: "▭" },
     { id: "panel", title: t("Panel"), icon: "▤" },
+    { id: "models", title: t("Models"), icon: "▣" },
     { id: "backends", title: t("Backends"), icon: "⛁" },
     { id: "general", title: t("General"), icon: "⚙︎" },
   ]);
@@ -179,6 +185,9 @@
           {/each}
         </section>
 
+      {:else if page === "models"}
+        <ModelManager />
+
       {:else if page === "backends"}
         {#each [{ kind: "llamaCpp", enabled: "llamaCppEnabled", url: "llamaCppUrl" }, { kind: "ollama", enabled: "ollamaEnabled", url: "ollamaUrl" }] as const as b}
           {@const online = s.backends.find((x) => x.kind === b.kind)?.online ?? false}
@@ -193,6 +202,8 @@
                 <label class="field">{t("Router service")} <input type="text" value={settings.routerService} onchange={(e) => set((x) => (x.routerService = e.currentTarget.value))} /></label>
                 <p class="hint">{t("launchd label (macOS) or systemd --user unit (Linux).")}</p>
               {/if}
+              <label class="field">{t("Presets file")} <input type="text" placeholder="presets.ini" value={settings.llamaCppPresets ?? ""} onchange={(e) => set((x) => (x.llamaCppPresets = e.currentTarget.value.trim() || null))} /></label>
+              <p class="hint">{t("Leave empty to read it from the running llama-server (--models-preset). Installing and removing models edits this file.")}</p>
               <p class="hint">{t("Router mode (llama-server --models-preset). Add metrics = 1 to each preset for token stats.")}</p>
             {:else}
               <p class="hint">{t("Ollama doesn't expose token counters; only memory, context and expiry are shown.")}</p>

@@ -58,6 +58,8 @@ pub struct Settings {
     pub llama_cpp_url: String,
     /// launchd label (macOS) or systemd --user unit (Linux) restarted by "Restart router".
     pub router_service: String,
+    /// Path to the router's presets.ini; None = read it from the running llama-server's arguments.
+    pub llama_cpp_presets: Option<String>,
     pub ollama_enabled: bool,
     pub ollama_url: String,
     /// None = follow the system.
@@ -77,6 +79,7 @@ impl Default for Settings {
             llama_cpp_enabled: true,
             llama_cpp_url: "http://127.0.0.1:8080".into(),
             router_service: if cfg!(target_os = "macos") { "com.local.llama-router".into() } else { "llama-router.service".into() },
+            llama_cpp_presets: None,
             ollama_enabled: true,
             ollama_url: "http://127.0.0.1:11434".into(),
             language: None,

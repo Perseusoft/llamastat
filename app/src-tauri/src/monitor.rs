@@ -43,6 +43,11 @@ impl Monitor {
         self.snapshot.lock().unwrap().clone()
     }
 
+    /// `presets.ini` the running router was started with, if llama-server is running with one.
+    pub fn router_presets(&self) -> Option<String> {
+        self.sys.lock().unwrap().flag_value("llama-server", "--models-preset")
+    }
+
     pub async fn tick(&self, settings: &Settings) -> Snapshot {
         let llama = settings.llama_cpp_enabled.then(|| LlamaCpp { base: trim(&settings.llama_cpp_url) });
         let ollama = settings.ollama_enabled.then(|| Ollama { base: trim(&settings.ollama_url) });

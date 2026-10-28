@@ -176,7 +176,8 @@ chmod +x Llamastat_amd64.AppImage &amp;&amp; ./Llamastat_amd64.AppImage</code></
 
 <script>
 (function () {
-  var BASE = "https://downloads.perseusoft.tech/llamastat-releases";
+  var REPO = "Perseusoft/llamastat";
+  var RELEASES = "https://github.com/" + REPO + "/releases";
   var html = document.documentElement;
 
   // Language: ?lang=, then saved choice, then the browser.
@@ -191,8 +192,8 @@ chmod +x Llamastat_amd64.AppImage &amp;&amp; ./Llamastat_amd64.AppImage</code></
   document.querySelectorAll(".lang button").forEach(function (b) { b.onclick = function () { setLang(b.dataset.set); }; });
   document.getElementById("year").textContent = new Date().getFullYear();
 
-  // Stable links work before the manifest arrives (and if it never does).
-  document.querySelectorAll("a[data-file]").forEach(function (a) { a.href = BASE + "/latest/" + a.dataset.file; });
+  // Until the API answers (or if it never does), every link goes to the releases page.
+  document.querySelectorAll("a[data-file]").forEach(function (a) { a.href = RELEASES + "/latest"; });
 
   // Primary button: best guess for the visitor's OS.
   var ua = navigator.userAgent, plat = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "";
@@ -201,19 +202,22 @@ chmod +x Llamastat_amd64.AppImage &amp;&amp; ./Llamastat_amd64.AppImage</code></
   else if (/Win/i.test(plat)) { pick = /ARM64|aarch64/i.test(ua) ? "Llamastat_arm64-setup.exe" : "Llamastat_x64-setup.exe"; label = "Windows"; }
   else if (/Linux/i.test(plat) && !/Android/i.test(ua)) { pick = /aarch64|arm64/i.test(ua) ? "Llamastat_aarch64.AppImage" : "Llamastat_amd64.AppImage"; label = "Linux"; }
   var btn = document.getElementById("primary");
-  if (pick) { btn.href = BASE + "/latest/" + pick; document.getElementById("primary-os").textContent = " · " + label; }
+  btn.href = RELEASES + "/latest";
+  if (pick) document.getElementById("primary-os").textContent = " · " + label;
 
-  // Manifest: show the version and point at the versioned files.
-  fetch(BASE + "/latest.json", { cache: "no-store" }).then(function (r) { return r.ok ? r.json() : null; }).then(function (m) {
-    if (!m || !m.version) return;
-    document.getElementById("version").textContent = m.version + " ·";
-    var strip = function (n) { return n.replace(/[_-][0-9]+\.[0-9]+\.[0-9]+(-[0-9]+)?/, ""); };
-    (m.files || []).forEach(function (url) {
-      var name = url.split("/").pop();
-      document.querySelectorAll("a[data-file]").forEach(function (a) { if (strip(name) === a.dataset.file) a.href = url; });
-      if (pick && strip(name) === pick) btn.href = url;
-    });
-  }).catch(function () {});
+  // Latest published release: version label + direct links to its assets.
+  var strip = function (n) { return n.replace(/[_-][0-9]+\.[0-9]+\.[0-9]+(-[0-9]+)?/, ""); };
+  fetch("https://api.github.com/repos/" + REPO + "/releases/latest", { headers: { Accept: "application/vnd.github+json" } })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (rel) {
+      if (!rel || !rel.assets) return;
+      document.getElementById("version").textContent = rel.tag_name + " ·";
+      rel.assets.forEach(function (asset) {
+        var name = asset.name, url = asset.browser_download_url;
+        document.querySelectorAll("a[data-file]").forEach(function (a) { if (strip(name) === a.dataset.file) a.href = url; });
+        if (pick && strip(name) === pick) btn.href = url;
+      });
+    }).catch(function () {});
 })();
 </script>
 </body>

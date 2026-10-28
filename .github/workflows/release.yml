@@ -1,7 +1,7 @@
 name: Release
 
 # Push a tag like v0.2.0 (or run manually) to build installers for every platform.
-# Artifacts go to a draft GitHub Release and, if the R2 secrets are set, to Cloudflare R2.
+# Artifacts go to a draft GitHub Release; publish it and the download page picks it up.
 on:
   push:
     tags: ["v*"]
@@ -105,74 +105,3 @@ jobs:
         with:
           name: llamastat-${{ matrix.name }}
           path: dist-upload/*
-
-  # Mirrors the installers to Cloudflare R2 (the same bucket/domain Astral uses, under its own prefix):
-  #   llamastat-releases/<version>/   versioned files
-  #   llamastat-releases/latest/      same files without the version (stable download links)
-  #   llamastat-releases/latest.json  manifest read by the download page
-  r2:
-    needs: build
-    runs-on: ubuntu-latest
-    if: ${{ vars.R2_BUCKET != '' }}
-    steps:
-      - uses: actions/download-artifact@v5
-        with:
-          path: artifacts
-          merge-multiple: true
-      - name: Upload to R2
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: auto
-          ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
-          BUCKET: ${{ vars.R2_BUCKET }}
-          PREFIX: ${{ vars.R2_PREFIX || 'llamastat-releases' }}
-          PUBLIC_URL: ${{ vars.R2_PUBLIC_URL || 'https://downloads.perseusoft.tech' }}
-          VERSION: ${{ github.ref_type == 'tag' && github.ref_name || format('dev-{0}', github.run_number) }}
-        run: |
-          ls -la artifacts
-          count=$(find artifacts -type f | wc -l)
-          [ "$count" -gt 0 ] || { echo "::error::no installers to upload"; exit 1; }
-          # Force a download instead of an inline preview, whatever the browser sniffs.
-          for f in artifacts/*; do
-            aws s3 cp "$f" "s3://$BUCKET/$PREFIX/$VERSION/$(basename "$f")" --endpoint-url "$ENDPOINT" \
-              --content-disposition "attachment; filename=\"$(basename "$f")\""
-          done
-          if [[ "$VERSION" == v* ]]; then
-            # Stable names for download links: drop the version from file names.
-            mkdir latest
-            for f in artifacts/*; do
-              name=$(basename "$f" | sed -E -e 's/_[0-9]+\.[0-9]+\.[0-9]+//' -e 's/-[0-9]+\.[0-9]+\.[0-9]+-[0-9]+//')
-              cp "$f" "latest/$name"
-            done
-            for f in latest/*; do
-              aws s3 cp "$f" "s3://$BUCKET/$PREFIX/latest/$(basename "$f")" --endpoint-url "$ENDPOINT" \
-                --content-disposition "attachment; filename=\"$(basename "$f")\""
-            done
-            # Manifest for the download page: version, date and one URL per installer.
-            python3 - <<'PY' > latest.json
-          import json, os, datetime
-          base = f"{os.environ['PUBLIC_URL']}/{os.environ['PREFIX']}/{os.environ['VERSION']}"
-          files = sorted(os.listdir("artifacts"))
-          def pick(*parts):
-              for f in files:
-                  if all(p in f for p in parts): return f"{base}/{f}"
-          assets = {
-              "macos_universal_dmg": pick("universal", ".dmg"),
-              "windows_x64_exe": pick("x64-setup.exe"), "windows_x64_msi": pick("x64", ".msi"),
-              "windows_arm64_exe": pick("arm64-setup.exe"),
-              "linux_x64_appimage": pick("amd64.AppImage"), "linux_x64_deb": pick("amd64.deb"), "linux_x64_rpm": pick("x86_64.rpm"),
-              "linux_arm64_appimage": pick("aarch64.AppImage"), "linux_arm64_deb": pick("arm64.deb"), "linux_arm64_rpm": pick("aarch64.rpm"),
-          }
-          print(json.dumps({
-              "version": os.environ["VERSION"],
-              "date": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-              "base_url": base,
-              "files": [f"{base}/{f}" for f in files],
-              "assets": {k: v for k, v in assets.items() if v},
-          }, indent=2))
-          PY
-            cat latest.json
-            aws s3 cp latest.json "s3://$BUCKET/$PREFIX/latest.json" --endpoint-url "$ENDPOINT" \
-              --content-type application/json --cache-control "max-age=300"
-          fi
