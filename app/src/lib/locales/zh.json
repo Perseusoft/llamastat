@@ -98,5 +98,8 @@
   "{0} downloads": "{0} 次下载",
   "Ollama pulls from its library; llama.cpp downloads a GGUF from Hugging Face into your models folder.": "Ollama 从其模型库拉取；llama.cpp 从 Hugging Face 下载 GGUF 到你的模型文件夹。",
   "The router only reads presets.ini when it starts. Restart it to apply the change.": "路由器仅在启动时读取 presets.ini。请重启以应用更改。",
-  "Can't find the router's presets.ini. Set it in Settings → Backends.": "找不到路由器的 presets.ini。请在“设置 → 后端”中指定。"
+  "Can't find the router's presets.ini. Set it in Settings → Backends.": "找不到路由器的 presets.ini。请在“设置 → 后端”中指定。",
+  "Appearance": "外观",
+  "Light": "浅色",
+  "Dark": "深色"
 }

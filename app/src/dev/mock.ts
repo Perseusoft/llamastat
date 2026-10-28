@@ -6,6 +6,7 @@ import type { Settings, Snapshot } from "../lib/api";
 import recorded from "./snapshot.json";
 
 const settings: Settings = {
+  theme: (new URLSearchParams(location.search).get("theme") as Settings["theme"]) || "system",
   widgets: (["icon", "tokensPerSecond", "model", "sparkline", "ram", "ramBar", "gpu", "context"] as const).map((widget, i) => ({ widget, enabled: i < 4 })),
   icon: "llama",
   colored: true,
