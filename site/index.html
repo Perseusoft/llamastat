@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Llamastat · Local LLM monitor</title>
+<meta name="description" content="Menu bar / tray app that shows tokens per second, context, RAM, GPU and swap for your local AI models (llama.cpp router and Ollama). macOS, Windows and Linux.">
+<link rel="icon" href="img/icon.png">
+<meta property="og:title" content="Llamastat · Local LLM monitor">
+<meta property="og:description" content="Live tokens/s, context, RAM, GPU and swap for llama.cpp and Ollama, from your menu bar or tray.">
+<meta property="og:image" content="https://llamastat.perseusoft.tech/img/dashboard.png">
+<style>
+  :root {
+    --bg: #ececec; --card: #ffffff; --text: #1d1d1f; --secondary: #6e6e73; --tertiary: #a1a1a6;
+    --track: rgba(120,120,128,.2); --accent: #0a84ff; --prompt: #30b0c7; --gpu: #ff9f0a; --memory: #bf5af2; --green: #30d158;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #1e1e1e; --card: #2a2a2c; --text: #f5f5f7; --secondary: #a1a1a6; --tertiary: #6e6e73; --track: rgba(120,120,128,.32); }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Ubuntu, Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 0 16px; }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; color: var(--text); }
+  .brand img { width: 28px; height: 28px; border-radius: 7px; }
+  nav { display: flex; gap: 18px; font-size: 14px; align-items: center; }
+  nav a { color: var(--secondary); } nav a:hover { color: var(--text); text-decoration: none; }
+  .lang button { background: none; border: 1px solid var(--track); color: var(--secondary); border-radius: 6px; padding: 3px 8px; font: inherit; font-size: 13px; cursor: pointer; }
+  .lang button.on { color: var(--text); border-color: var(--secondary); }
+  .hero { text-align: center; padding: 48px 0 24px; }
+  .hero img.icon { width: 96px; height: 96px; border-radius: 22px; box-shadow: 0 12px 32px rgba(0,0,0,.18); }
+  h1 { font-size: 42px; letter-spacing: -.02em; margin: 18px 0 8px; }
+  .tag { font-size: 20px; color: var(--secondary); max-width: 620px; margin: 0 auto 28px; }
+  .cta { display: inline-flex; flex-direction: column; align-items: center; gap: 8px; }
+  .btn { display: inline-flex; align-items: center; gap: 10px; background: var(--accent); color: #fff; font-weight: 600; font-size: 17px; padding: 13px 24px; border-radius: 12px; box-shadow: 0 6px 18px rgba(10,132,255,.35); }
+  .btn:hover { text-decoration: none; filter: brightness(1.06); }
+  .btn svg { width: 20px; height: 20px; fill: currentColor; }
+  .sub { font-size: 13px; color: var(--tertiary); }
+  .sub a { color: var(--secondary); }
+  .shots { display: flex; gap: 16px; justify-content: center; align-items: flex-start; flex-wrap: wrap; padding: 24px 0 8px; }
+  .shots img { max-width: 100%; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.2); }
+  .shots .panel { width: 280px; } .shots .dash { width: 560px; }
+  section { padding: 40px 0; }
+  h2 { font-size: 26px; letter-spacing: -.01em; margin: 0 0 18px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .card { background: var(--card); border-radius: 14px; padding: 18px 20px; }
+  .card h3 { margin: 0 0 6px; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .card p { margin: 0; color: var(--secondary); font-size: 15px; }
+  table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 14px; overflow: hidden; }
+  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--track); font-size: 15px; vertical-align: top; }
+  th { color: var(--secondary); font-weight: 500; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; }
+  tr:last-child td { border-bottom: 0; }
+  td.os { font-weight: 600; white-space: nowrap; }
+  td .arch { color: var(--secondary); font-weight: 400; display: block; font-size: 13px; }
+  .files a { display: inline-block; margin: 2px 10px 2px 0; white-space: nowrap; }
+  .note { color: var(--secondary); font-size: 14px; margin-top: 12px; }
+  code { font: 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--track); padding: 2px 6px; border-radius: 5px; }
+  pre { background: var(--card); border-radius: 12px; padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+  details { background: var(--card); border-radius: 12px; padding: 10px 16px; margin: 10px 0; }
+  summary { cursor: pointer; font-weight: 600; }
+  details p, details ol { color: var(--secondary); font-size: 15px; }
+  footer { padding: 32px 0 40px; color: var(--tertiary); font-size: 13px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  footer a { color: var(--secondary); }
+  [data-lang] { display: none; } html[lang="en"] [data-lang="en"], html[lang="es"] [data-lang="es"] { display: revert; }
+  @media (max-width: 600px) { h1 { font-size: 32px; } .tag { font-size: 17px; } nav .hide-sm { display: none !important; } .lang { white-space: nowrap; } th, td { padding: 10px 12px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="brand" href="/"><img src="img/icon.png" alt=""> Llamastat</a>
+    <nav>
+      <a href="#download" class="hide-sm" data-lang="en">Download</a><a href="#download" class="hide-sm" data-lang="es">Descargar</a>
+      <a href="#backends" class="hide-sm" data-lang="en">Set up</a><a href="#backends" class="hide-sm" data-lang="es">Configurar</a>
+      <a href="https://github.com/Perseusoft/llamastat">GitHub</a>
+      <span class="lang"><button data-set="en">EN</button> <button data-set="es">ES</button></span>
+    </nav>
+  </header>
+
+  <div class="hero">
+    <img class="icon" src="img/icon.png" alt="Llamastat icon">
+    <h1>Llamastat</h1>
+    <p class="tag" data-lang="en">See what your local AI models are doing, from the menu bar. Live tokens/s, context, RAM, GPU and swap, plus load and eject models without leaving the tray.</p>
+    <p class="tag" data-lang="es">Mira qué hacen tus modelos de IA locales desde la barra de menú. Tokens/s en vivo, contexto, RAM, GPU y swap, y carga o expulsa modelos sin salir de la bandeja.</p>
+    <div class="cta">
+      <a class="btn" id="primary" href="#download">
+        <svg viewBox="0 0 24 24"><path d="M12 3v11.6l3.3-3.3 1.4 1.4L12 18.4l-5.7-5.7 1.4-1.4 3.3 3.3V3h2zM4 19h16v2H4z"/></svg>
+        <span data-lang="en">Download</span><span data-lang="es">Descargar</span><span id="primary-os"></span>
+      </a>
+      <span class="sub"><span id="version"></span> <span data-lang="en">Free and open source · macOS 11+, Windows 10/11, Linux ·</span><span data-lang="es">Gratis y de código abierto · macOS 11+, Windows 10/11, Linux ·</span> <a href="#download" data-lang="en">other platforms</a><a href="#download" data-lang="es">otras plataformas</a></span>
+    </div>
+  </div>
+
+  <div class="shots">
+    <img class="panel" src="img/panel.png" alt="Llamastat panel">
+    <img class="dash" src="img/dashboard.png" alt="Llamastat dashboard">
+  </div>
+
+  <section id="features">
+    <h2 data-lang="en">What it shows</h2><h2 data-lang="es">Qué muestra</h2>
+    <div class="grid">
+      <div class="card"><h3><span class="dot" style="background:var(--accent)"></span><span data-lang="en">Tokens per second, live</span><span data-lang="es">Tokens por segundo, en vivo</span></h3>
+        <p data-lang="en">Generation and prompt-processing speed per model, with history, straight in the menu bar icon.</p>
+        <p data-lang="es">Velocidad de generación y de procesado del prompt por modelo, con historial, en el propio ícono de la barra.</p></div>
+      <div class="card"><h3><span class="dot" style="background:var(--prompt)"></span><span data-lang="en">Context in use</span><span data-lang="es">Contexto en uso</span></h3>
+        <p data-lang="en">How full each model's context window is and the number of active requests.</p>
+        <p data-lang="es">Qué tan lleno va el contexto de cada modelo y cuántas peticiones hay activas.</p></div>
+      <div class="card"><h3><span class="dot" style="background:var(--memory)"></span><span data-lang="en">RAM, GPU and swap</span><span data-lang="es">RAM, GPU y swap</span></h3>
+        <p data-lang="en">System memory, per-process usage, GPU utilisation and swap pressure, so you know when a model no longer fits.</p>
+        <p data-lang="es">Memoria del sistema, uso por proceso, utilización de GPU y presión de swap, para saber cuándo un modelo ya no cabe.</p></div>
+      <div class="card"><h3><span class="dot" style="background:var(--green)"></span><span data-lang="en">Load and eject models</span><span data-lang="es">Cargar y expulsar modelos</span></h3>
+        <p data-lang="en">Pick a preset to load it on the llama.cpp router, or unload what you are not using, from the panel.</p>
+        <p data-lang="es">Elige un preset para cargarlo en el router de llama.cpp, o descarga lo que no uses, desde el panel.</p></div>
+      <div class="card"><h3><span class="dot" style="background:var(--gpu)"></span>llama.cpp + Ollama</h3>
+        <p data-lang="en">Full stats with the llama.cpp router. With Ollama: memory, context and when the model will be released (no tokens/s).</p>
+        <p data-lang="es">Estadísticas completas con el router de llama.cpp. Con Ollama: memoria, contexto y cuándo se libera el modelo (sin tokens/s).</p></div>
+      <div class="card"><h3><span class="dot" style="background:var(--tertiary)"></span><span data-lang="en">Small and native</span><span data-lang="es">Pequeño y nativo</span></h3>
+        <p data-lang="en">Rust core and the system webview (Tauri). No Electron, one code base for the three platforms.</p>
+        <p data-lang="es">Núcleo en Rust y el webview del sistema (Tauri). Sin Electron, un solo código para las tres plataformas.</p></div>
+    </div>
+  </section>
+
+  <section id="download">
+    <h2 data-lang="en">Download</h2><h2 data-lang="es">Descargar</h2>
+    <table>
+      <thead><tr><th data-lang="en">System</th><th data-lang="es">Sistema</th><th data-lang="en">Files</th><th data-lang="es">Archivos</th></tr></thead>
+      <tbody>
+        <tr><td class="os">macOS 11+<span class="arch">Apple Silicon &amp; Intel</span></td>
+            <td class="files"><a data-file="Llamastat_universal.dmg">Llamastat_universal.dmg</a></td></tr>
+        <tr><td class="os">Windows 10/11<span class="arch">x64</span></td>
+            <td class="files"><a data-file="Llamastat_x64-setup.exe">Llamastat_x64-setup.exe</a> <a data-file="Llamastat_x64_en-US.msi">Llamastat_x64_en-US.msi</a></td></tr>
+        <tr><td class="os">Windows 10/11<span class="arch">ARM64</span></td>
+            <td class="files"><a data-file="Llamastat_arm64-setup.exe">Llamastat_arm64-setup.exe</a></td></tr>
+        <tr><td class="os">Linux<span class="arch">x64</span></td>
+            <td class="files"><a data-file="Llamastat_amd64.AppImage">Llamastat_amd64.AppImage</a> <a data-file="Llamastat_amd64.deb">Llamastat_amd64.deb</a> <a data-file="Llamastat.x86_64.rpm">Llamastat.x86_64.rpm</a></td></tr>
+        <tr><td class="os">Linux<span class="arch">ARM64</span></td>
+            <td class="files"><a data-file="Llamastat_aarch64.AppImage">Llamastat_aarch64.AppImage</a> <a data-file="Llamastat_arm64.deb">Llamastat_arm64.deb</a> <a data-file="Llamastat.aarch64.rpm">Llamastat.aarch64.rpm</a></td></tr>
+      </tbody>
+    </table>
+    <p class="note" data-lang="en">Every version is also on <a href="https://github.com/Perseusoft/llamastat/releases">GitHub Releases</a>. Builds are not signed yet: on macOS right-click the app → <b>Open</b> the first time; on Windows choose <b>More info → Run anyway</b>.</p>
+    <p class="note" data-lang="es">Todas las versiones están también en <a href="https://github.com/Perseusoft/llamastat/releases">GitHub Releases</a>. Los builds aún no van firmados: en macOS haz clic derecho → <b>Abrir</b> la primera vez; en Windows elige <b>Más información → Ejecutar de todas formas</b>.</p>
+
+    <details><summary>macOS</summary>
+      <ol data-lang="en"><li>Open the <code>.dmg</code> and drag Llamastat to Applications.</li><li>Right-click Llamastat → <b>Open</b> the first time (unsigned build).</li><li>It lives in the menu bar; the panel opens from the icon.</li></ol>
+      <ol data-lang="es"><li>Abre el <code>.dmg</code> y arrastra Llamastat a Aplicaciones.</li><li>Clic derecho en Llamastat → <b>Abrir</b> la primera vez (build sin firmar).</li><li>Vive en la barra de menú; el panel se abre desde el ícono.</li></ol></details>
+    <details><summary>Windows</summary>
+      <p data-lang="en">Run the <code>-setup.exe</code> (or the <code>.msi</code>). Needs WebView2, which ships with Windows 10 21H2+ and 11; the installer adds it if missing. The icon sits in the notification area; the tooltip shows tokens/s and the loaded model.</p>
+      <p data-lang="es">Ejecuta el <code>-setup.exe</code> (o el <code>.msi</code>). Necesita WebView2, que viene con Windows 10 21H2+ y 11; el instalador lo añade si falta. El ícono queda en el área de notificación y el tooltip muestra tokens/s y el modelo cargado.</p></details>
+    <details><summary>Linux</summary>
+<pre><code># Debian / Ubuntu
+sudo apt install ./Llamastat_amd64.deb        # or _arm64.deb
+# Fedora / openSUSE
+sudo dnf install ./Llamastat.x86_64.rpm       # or .aarch64.rpm
+# Any distro
+chmod +x Llamastat_amd64.AppImage &amp;&amp; ./Llamastat_amd64.AppImage</code></pre>
+      <p data-lang="en">Needs a tray with AppIndicator support (KDE, Cinnamon, XFCE and Ubuntu's GNOME work; on vanilla GNOME install the <a href="https://extensions.gnome.org/extension/615/appindicator-support/">AppIndicator extension</a>). Open the panel from the tray menu.</p>
+      <p data-lang="es">Necesita una bandeja con soporte AppIndicator (KDE, Cinnamon, XFCE y el GNOME de Ubuntu funcionan; en GNOME puro instala la <a href="https://extensions.gnome.org/extension/615/appindicator-support/">extensión AppIndicator</a>). El panel se abre desde el menú de la bandeja.</p></details>
+  </section>
+
+  <section id="backends">
+    <h2 data-lang="en">Set up a backend</h2><h2 data-lang="es">Configura un backend</h2>
+    <p data-lang="en">Llamastat reads from servers you already run; it does not run models itself. For full stats, run <code>llama-server</code> in <b>router mode</b> with <code>metrics = 1</code> in each preset. Ollama works out of the box on its default port.</p>
+    <p data-lang="es">Llamastat lee de servidores que ya tienes corriendo; no ejecuta modelos. Para las estadísticas completas, corre <code>llama-server</code> en <b>modo router</b> con <code>metrics = 1</code> en cada preset. Ollama funciona directamente en su puerto por defecto.</p>
+    <p class="note" data-lang="en">The repo ships presets and scripts that install the router as a service on macOS (LaunchAgent), Linux (systemd --user) and Windows (PowerShell): <a href="https://github.com/Perseusoft/llamastat/tree/main/examples/llama-router">examples/llama-router</a>. Full guide in the <a href="https://github.com/Perseusoft/llamastat#set-up-a-backend">README</a>.</p>
+    <p class="note" data-lang="es">El repo trae presets y scripts que instalan el router como servicio en macOS (LaunchAgent), Linux (systemd --user) y Windows (PowerShell): <a href="https://github.com/Perseusoft/llamastat/tree/main/examples/llama-router">examples/llama-router</a>. Guía completa en el <a href="https://github.com/Perseusoft/llamastat/blob/main/README.es.md#configura-un-backend">README</a>.</p>
+  </section>
+
+  <footer>
+    <span>© <span id="year"></span> <a href="https://perseusoft.tech">PerseuSoft</a></span>
+    <span><a href="https://github.com/Perseusoft/llamastat">GitHub</a> · <a href="https://github.com/Perseusoft/llamastat/issues" data-lang="en">Report an issue</a><a href="https://github.com/Perseusoft/llamastat/issues" data-lang="es">Reportar un problema</a></span>
+  </footer>
+</div>
+
+<script>
+(function () {
+  var REPO = "Perseusoft/llamastat";
+  var RELEASES = "https://github.com/" + REPO + "/releases";
+  var html = document.documentElement;
+
+  // Language: ?lang=, then saved choice, then the browser.
+  function setLang(l) {
+    html.lang = l;
+    document.querySelectorAll(".lang button").forEach(function (b) { b.classList.toggle("on", b.dataset.set === l); });
+    try { localStorage.setItem("lang", l); } catch (e) {}
+  }
+  var q = new URLSearchParams(location.search).get("lang"), saved = null;
+  try { saved = localStorage.getItem("lang"); } catch (e) {}
+  setLang(q === "es" || q === "en" ? q : saved || (/^es/i.test(navigator.language) ? "es" : "en"));
+  document.querySelectorAll(".lang button").forEach(function (b) { b.onclick = function () { setLang(b.dataset.set); }; });
+  document.getElementById("year").textContent = new Date().getFullYear();
+
+  // Until the API answers (or if it never does), every link goes to the releases page.
+  document.querySelectorAll("a[data-file]").forEach(function (a) { a.href = RELEASES + "/latest"; });
+
+  // Primary button: best guess for the visitor's OS.
+  var ua = navigator.userAgent, plat = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "";
+  var pick = null, label = "";
+  if (/Mac/i.test(plat) && !/iPhone|iPad/.test(ua)) { pick = "Llamastat_universal.dmg"; label = "macOS"; }
+  else if (/Win/i.test(plat)) { pick = /ARM64|aarch64/i.test(ua) ? "Llamastat_arm64-setup.exe" : "Llamastat_x64-setup.exe"; label = "Windows"; }
+  else if (/Linux/i.test(plat) && !/Android/i.test(ua)) { pick = /aarch64|arm64/i.test(ua) ? "Llamastat_aarch64.AppImage" : "Llamastat_amd64.AppImage"; label = "Linux"; }
+  var btn = document.getElementById("primary");
+  btn.href = RELEASES + "/latest";
+  if (pick) document.getElementById("primary-os").textContent = " · " + label;
+
+  // Latest published release: version label + direct links to its assets.
+  var strip = function (n) { return n.replace(/[_-][0-9]+\.[0-9]+\.[0-9]+(-[0-9]+)?/, ""); };
+  fetch("https://api.github.com/repos/" + REPO + "/releases/latest", { headers: { Accept: "application/vnd.github+json" } })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (rel) {
+      if (!rel || !rel.assets) return;
+      document.getElementById("version").textContent = rel.tag_name + " ·";
+      rel.assets.forEach(function (asset) {
+        var name = asset.name, url = asset.browser_download_url;
+        document.querySelectorAll("a[data-file]").forEach(function (a) { if (strip(name) === a.dataset.file) a.href = url; });
+        if (pick && strip(name) === pick) btn.href = url;
+      });
+    }).catch(function () {});
+})();
+</script>
+</body>
+</html>

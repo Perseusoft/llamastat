@@ -69,6 +69,8 @@ pub struct ModelInfo {
     pub name: String,
     pub state: ModelState,
     pub size_bytes: Option<u64>,
+    /// GGUF path for llama.cpp presets (what "Remove" deletes); Ollama manages its own blobs.
+    pub path: Option<String>,
     pub stats: Option<ModelStats>,
     #[serde(skip)]
     pub process_match: Option<ProcessMatch>,
@@ -82,6 +84,7 @@ impl ModelInfo {
             name,
             state,
             size_bytes: None,
+            path: None,
             stats: None,
             process_match: None,
         }

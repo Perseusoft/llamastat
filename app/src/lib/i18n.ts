@@ -1,97 +1,34 @@
 import { store } from "./store.svelte";
+import de from "./locales/de.json";
+import es from "./locales/es.json";
+import fr from "./locales/fr.json";
+import it from "./locales/it.json";
+import ja from "./locales/ja.json";
+import pt from "./locales/pt.json";
+import zh from "./locales/zh.json";
 
-/// Keys are the English text; `{0}` placeholders are filled from args.
-const es: Record<string, string> = {
-  // Panel
-  History: "Historial",
-  Memory: "Memoria",
-  Models: "Modelos",
-  "Models are loaded in more than one backend. Watch your RAM.": "Hay modelos cargados en más de un backend. Ojo con la RAM.",
-  "Swap almost full ({0}). The system will slow down.": "Swap casi lleno ({0}). El sistema va a ir lento.",
-  "In use": "En uso",
-  Swap: "Swap",
-  "Restart router": "Reiniciar router",
-  Quit: "Salir",
-  Settings: "Ajustes",
-  "last {0} s": "últimos {0} s",
-  Status: "Estado",
-  generating: "generando",
-  idle: "en espera",
-  Context: "Contexto",
-  "Busy slots": "Slots ocupados",
-  "Generation (avg)": "Generación (media)",
-  "Prompt (avg)": "Prompt (media)",
-  "Generated tokens": "Tokens generados",
-  "Prompt tokens": "Tokens de prompt",
-  "Process RAM": "RAM del proceso",
-  Unloads: "Se libera",
-  "No backend is responding": "Ningún backend responde",
-  "No models": "Sin modelos",
-  Load: "Cargar",
-  Eject: "Expulsar",
-  "Load the model into memory": "Cargar el modelo en memoria",
-  "Free the memory used by the model": "Liberar la memoria que usa el modelo",
-  // Settings
-  Dashboard: "Dashboard",
-  "Menu bar": "Barra de menú",
-  Tray: "Bandeja",
-  Panel: "Panel",
-  Backends: "Backends",
-  General: "General",
-  "Tokens per second": "Tokens por segundo",
-  "Used: {0}": "En uso: {0}",
-  "Total: {0}": "Total: {0}",
-  Free: "Libre",
-  Preview: "Vista previa",
-  Icon: "Ícono",
-  Widgets: "Widgets",
-  "Turn widgets on and drag them to change the order.": "Activa los widgets y arrástralos para cambiar el orden.",
-  "Graphics are drawn in the icon; text appears next to it (in the tooltip on Windows).":
-    "Los gráficos se dibujan en el ícono; el texto aparece al lado (en el tooltip en Windows).",
-  Options: "Opciones",
-  "Colored (otherwise follows the menu bar color)": "En color (si no, sigue el color de la barra)",
-  "Show tokens/s only while generating": "Mostrar tokens/s solo mientras genera",
-  "Restore defaults": "Restaurar valores predeterminados",
-  "Sections shown in the panel": "Secciones que se muestran en el panel",
-  Gauges: "Indicadores",
-  Warnings: "Avisos",
-  "Loaded model details": "Detalle del modelo cargado",
-  "Router mode (llama-server --models-preset). Add metrics = 1 to each preset for token stats.":
-    "Modo router (llama-server --models-preset). Agrega metrics = 1 a cada preset para ver estadísticas de tokens.",
-  "Ollama doesn't expose token counters; only memory, context and expiry are shown.":
-    "Ollama no expone contadores de tokens; solo se muestran memoria, contexto y cuándo se libera.",
-  "Router service": "Servicio del router",
-  "launchd label (macOS) or systemd --user unit (Linux).": "Label de launchd (macOS) o unidad systemd --user (Linux).",
-  Online: "Conectado",
-  Offline: "Desconectado",
-  Language: "Idioma",
-  System: "Sistema",
-  "Update every": "Actualizar cada",
-  "Open at login": "Abrir al iniciar sesión",
-  "Tokens per second (icon)": "Tokens por segundo",
-  "Loaded model": "Modelo cargado",
-  "RAM %": "RAM %",
-  "GPU %": "GPU %",
-  "Context used %": "Contexto usado %",
-  "RAM bar": "Barra de RAM",
-  "Tokens/s graph": "Gráfica de tokens/s",
-  Llama: "Llama",
-  Chip: "Chip",
-  Bolt: "Rayo",
-  Dot: "Punto",
-  "No GPU stats on this system": "Sin estadísticas de GPU en este sistema",
-};
+/// English is the source language: keys are the English text, `{0}` placeholders are filled from args.
+/// Each locale lives in `locales/<code>.json` with the same keys (`npm run check:i18n` enforces it).
+/// To add a language: create the JSON file, register it below, and add the tray menu strings in
+/// `src-tauri/src/lib.rs` (`tr`).
+const dictionaries: Record<string, Record<string, string>> = { de, es, fr, it, ja, pt, zh };
 
-const dictionaries: Record<string, Record<string, string>> = { es };
-
-export const languages = [
+export const languages: { code: string | null; name: string }[] = [
   { code: null, name: "System" },
   { code: "en", name: "English" },
   { code: "es", name: "Español" },
+  { code: "pt", name: "Português" },
+  { code: "fr", name: "Français" },
+  { code: "de", name: "Deutsch" },
+  { code: "it", name: "Italiano" },
+  { code: "zh", name: "中文" },
+  { code: "ja", name: "日本語" },
 ];
 
+/// Two-letter code of the active language; falls back to English for anything without a dictionary.
 export function currentLanguage(): string {
-  return (store.settings?.language ?? navigator.language ?? "en").slice(0, 2);
+  const code = (store.settings?.language ?? navigator.language ?? "en").slice(0, 2).toLowerCase();
+  return code === "en" || code in dictionaries ? code : "en";
 }
 
 export function t(key: string, ...args: (string | number)[]): string {

@@ -25,6 +25,8 @@ export interface ModelInfo {
   name: string;
   state: ModelState;
   sizeBytes: number | null;
+  /// GGUF path for llama.cpp presets (what "Remove" deletes).
+  path: string | null;
   stats: ModelStats | null;
 }
 
@@ -74,10 +76,32 @@ export interface Settings {
   llamaCppEnabled: boolean;
   llamaCppUrl: string;
   routerService: string;
+  /// Router presets.ini; null = read it from the running llama-server's arguments.
+  llamaCppPresets: string | null;
   ollamaEnabled: boolean;
   ollamaUrl: string;
   language: string | null;
 }
+
+export interface InstallProgress {
+  id: string;
+  backend: BackendKind;
+  name: string;
+  /// downloading | pulling | removing | done | removed | cancelled | error
+  status: string;
+  completed: number;
+  total: number | null;
+  done: boolean;
+  error: string | null;
+}
+
+export type InstallSource =
+  | { kind: "ollama"; model: string }
+  | { kind: "huggingFace"; repo: string; file: string; name: string | null };
+
+export interface HfRepo { id: string; downloads: number; likes: number }
+export interface HfFile { path: string; size: number | null }
+export interface RouterPaths { presets: string | null; modelsDir: string | null }
 
 export const backendLabel = (kind: BackendKind) => (kind === "llamaCpp" ? "llama.cpp" : "Ollama");
 
@@ -88,9 +112,17 @@ export const api = {
   toggleModel: (model: ModelInfo) =>
     invoke("toggle_model", { backend: model.backend, name: model.name, load: model.state === "unloaded" }),
   restartRouter: () => invoke("restart_router"),
-  openSettings: () => invoke("open_settings"),
+  openSettings: (page?: string) => invoke("open_settings", { page: page ?? null }),
+  searchModels: (query: string) => invoke<HfRepo[]>("search_models", { query }),
+  modelFiles: (repo: string) => invoke<HfFile[]>("model_files", { repo }),
+  installModel: (source: InstallSource) => invoke("install_model", { source }),
+  cancelInstall: (id: string) => invoke("cancel_install", { id }),
+  removeModel: (model: ModelInfo) => invoke("remove_model", { backend: model.backend, name: model.name }),
+  routerPaths: () => invoke<RouterPaths>("router_paths"),
   fitPanel: (height: number) => invoke("fit_panel", { height }),
   quit: () => invoke("quit"),
   onSnapshot: (fn: (s: Snapshot) => void) => listen<Snapshot>("snapshot", (e) => fn(e.payload)),
   onSettings: (fn: (s: Settings) => void) => listen<Settings>("settings", (e) => fn(e.payload)),
+  onInstall: (fn: (p: InstallProgress) => void) => listen<InstallProgress>("install", (e) => fn(e.payload)),
+  onOpenPage: (fn: (page: string) => void) => listen<string>("open-page", (e) => fn(e.payload)),
 };

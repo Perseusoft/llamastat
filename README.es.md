@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Perseusoft/llamastat/releases/latest"><b>⬇ Descargar</b></a> ·
+  <a href="https://llamastat.perseusoft.tech"><b>⬇ Descargar</b></a> ·
   <a href="#instalación">Instalación</a> ·
   <a href="#configurar-un-backend">Backends</a> ·
   <a href="#compilar">Compilar</a> ·
@@ -36,6 +36,7 @@ vistazo:
 - **¿Cabe en memoria?** RAM del proceso del modelo, RAM del sistema, swap y memoria de GPU. Avisa cuando el swap está
   casi lleno o cuando dos backends tienen modelos cargados a la vez.
 - **Libera memoria sin terminal.** Carga y expulsa modelos desde el panel.
+- **Instala y elimina modelos.** Ajustes → Modelos descarga modelos de Ollama por nombre y GGUF de Hugging Face a tu carpeta de modelos de llama.cpp (añade el preset por ti); Eliminar borra el modelo y su preset.
 
 ## Funciones
 
@@ -43,14 +44,15 @@ vistazo:
 |---|---|
 | **Ítem en la barra / bandeja** | Eliges qué mostrar y en qué orden: ícono, tokens/s, modelo, RAM %, GPU %, contexto %, barra de RAM, gráfica de tokens/s. Monocromo o en color. |
 | **Panel** | Indicadores de RAM, tokens/s y GPU, historial de 2 min, detalle de cada modelo cargado, memoria y lista de modelos con **Cargar / Expulsar**. |
+| **Modelos** | Instalar (pull de Ollama, o un GGUF de Hugging Face para el router de llama.cpp) y eliminar modelos, con progreso y cancelación. El router relee sus presets al reiniciar, así que la página ofrece **Reiniciar router** tras un cambio. |
 | **Dashboard** | Gráficas de 5 min de RAM, tokens/s, GPU y swap. |
 | **Backends** | llama.cpp en modo router (estadísticas completas) y Ollama (memoria, contexto, keep-alive). |
 | **GPU** | Apple Silicon (IOKit), NVIDIA (NVML) en Windows/Linux, AMD en Linux (sysfs). |
-| **Idiomas** | Español e inglés; sigue al sistema o se elige en Ajustes. |
+| **Idiomas** | Inglés (por defecto), español, portugués, francés, alemán, italiano, chino y japonés; sigue al sistema o se elige en Ajustes. |
 
 ## Instalación
 
-Descarga el instalador desde el **[último release](https://github.com/Perseusoft/llamastat/releases/latest)**:
+Descarga el instalador desde **[llamastat.perseusoft.tech](https://llamastat.perseusoft.tech)** (o del [último release en GitHub](https://github.com/Perseusoft/llamastat/releases/latest)):
 
 | Sistema | Arquitecturas | Archivo |
 |---|---|---|

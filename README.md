@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Perseusoft/llamastat/releases/latest"><b>⬇ Download</b></a> ·
+  <a href="https://llamastat.perseusoft.tech"><b>⬇ Download</b></a> ·
   <a href="#install">Install</a> ·
   <a href="#set-up-a-backend">Set up a backend</a> ·
   <a href="#build-from-source">Build</a> ·
@@ -36,6 +36,7 @@ Llamastat keeps the important numbers one glance away:
 - **Will it fit in memory?** RAM of the model process, system RAM, swap and GPU memory, with a warning when swap is
   almost full or when two backends have models loaded at the same time (the classic "why is everything frozen").
 - **Free memory without a terminal.** Load and eject models from the panel.
+- **Install and remove models.** Settings → Models pulls Ollama models by name and downloads GGUFs from Hugging Face into your llama.cpp models folder (it adds the preset for you); Remove deletes the model and its preset.
 
 ## Features
 
@@ -43,15 +44,16 @@ Llamastat keeps the important numbers one glance away:
 |---|---|
 | **Tray / menu bar item** | Pick what to show and in which order: icon, tokens/s, loaded model, RAM %, GPU %, context %, RAM bar, tokens/s graph. Monochrome or colored. |
 | **Panel** | Gauges for RAM, tokens/s and GPU, 2-minute history, details for each loaded model, memory, model list with **Load / Eject**. Choose which sections appear. |
+| **Models** | Install (Ollama pull, or a GGUF from Hugging Face for the llama.cpp router) and remove models, with progress and cancel. The router re-reads its presets on restart, so the page offers **Restart router** after a change. |
 | **Dashboard** | 5-minute charts for RAM, tokens/s, GPU and swap. |
 | **Backends** | llama.cpp router mode (full stats) and Ollama (memory, context, keep-alive). Configurable URLs. |
 | **GPU** | Apple Silicon (IOKit), NVIDIA (NVML) on Windows/Linux, AMD on Linux (sysfs). |
-| **Languages** | English and Spanish; follows the system or pick one in Settings. |
+| **Languages** | English (default), Spanish, Portuguese, French, German, Italian, Chinese and Japanese; follows the system or pick one in Settings. |
 | **Small** | Rust core + the system webview ([Tauri](https://tauri.app)). No Electron. |
 
 ## Install
 
-Download the installer for your system from the **[latest release](https://github.com/Perseusoft/llamastat/releases/latest)**:
+Download the installer for your system from **[llamastat.perseusoft.tech](https://llamastat.perseusoft.tech)** (or the [latest GitHub release](https://github.com/Perseusoft/llamastat/releases/latest)):
 
 | System | Architectures | File |
 |---|---|---|
@@ -86,9 +88,9 @@ Needs WebView2, which ships with Windows 10 (21H2+) and 11; the installer adds i
 
 ```bash
 # Debian / Ubuntu
-sudo apt install ./llamastat_<version>_amd64.deb      # or _arm64.deb
+sudo apt install ./Llamastat_<version>_amd64.deb      # or _arm64.deb
 # Fedora / openSUSE
-sudo dnf install ./llamastat-<version>-1.x86_64.rpm   # or .aarch64.rpm
+sudo dnf install ./Llamastat-<version>-1.x86_64.rpm   # or .aarch64.rpm
 # Any distro
 chmod +x Llamastat_<version>_amd64.AppImage && ./Llamastat_<version>_amd64.AppImage
 ```

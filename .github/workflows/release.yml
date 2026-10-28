@@ -1,7 +1,7 @@
 name: Release
 
 # Push a tag like v0.2.0 (or run manually) to build installers for every platform.
-# Artifacts go to a draft GitHub Release and, if the R2 secrets are set, to Cloudflare R2.
+# Artifacts go to a draft GitHub Release; publish it and the download page picks it up.
 on:
   push:
     tags: ["v*"]
@@ -57,17 +57,34 @@ jobs:
       - run: npm ci
         working-directory: app
 
-      - uses: tauri-apps/tauri-action@v0
-        id: tauri
+      # Optional macOS signing/notarization (see docs/RELEASE.md). Only exported when the secrets exist:
+      # tauri tries to import the certificate as soon as APPLE_CERTIFICATE is set, even if it's empty,
+      # and the build dies with "failed to import keychain certificate".
+      - name: macOS signing secrets
+        if: runner.os == 'macOS'
+        shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Optional macOS signing/notarization; without these the app is unsigned (see docs/RELEASE.md).
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          for v in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            if [ -n "${!v}" ]; then
+              { echo "$v<<__EOF__"; echo "${!v}"; echo "__EOF__"; } >> "$GITHUB_ENV"
+              echo "$v: set"
+            else
+              echo "$v: not set"
+            fi
+          done
+          [ -n "$APPLE_CERTIFICATE" ] || echo "No certificate: the .dmg will be unsigned."
+
+      - uses: tauri-apps/tauri-action@v0
+        id: tauri
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: app
           args: --target ${{ matrix.target }} ${{ matrix.bundles }}
@@ -88,34 +105,3 @@ jobs:
         with:
           name: llamastat-${{ matrix.name }}
           path: dist-upload/*
-
-  # Mirrors the installers to Cloudflare R2: releases/<version>/ and latest/.
-  r2:
-    needs: build
-    runs-on: ubuntu-latest
-    if: ${{ vars.R2_BUCKET != '' }}
-    steps:
-      - uses: actions/download-artifact@v5
-        with:
-          path: artifacts
-          merge-multiple: true
-      - name: Upload to R2
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: auto
-          ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
-          BUCKET: ${{ vars.R2_BUCKET }}
-          VERSION: ${{ github.ref_type == 'tag' && github.ref_name || format('dev-{0}', github.run_number) }}
-        run: |
-          ls -la artifacts
-          aws s3 cp artifacts "s3://$BUCKET/releases/$VERSION/" --recursive --endpoint-url "$ENDPOINT"
-          if [[ "$VERSION" == v* ]]; then
-            # Stable names for the README download links (version stripped from file names).
-            mkdir latest
-            for f in artifacts/*; do
-              name=$(basename "$f" | sed -E -e 's/_[0-9]+\.[0-9]+\.[0-9]+//' -e 's/-[0-9]+\.[0-9]+\.[0-9]+-[0-9]+//')
-              cp "$f" "latest/$name"
-            done
-            aws s3 sync latest "s3://$BUCKET/latest/" --delete --endpoint-url "$ENDPOINT"
-          fi

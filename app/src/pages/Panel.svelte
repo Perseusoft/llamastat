@@ -85,7 +85,10 @@
     {/if}
 
     {#if store.isVisible("modelList")}
-      <SectionHeader title={t("Models")} />
+      <div class="models-header">
+        <div class="grow"><SectionHeader title={t("Models")} /></div>
+        <button class="link manage" onclick={() => api.openSettings("models")}>{t("Manage…")}</button>
+      </div>
       <ModelList />
     {/if}
 
@@ -116,4 +119,7 @@
   .legend i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; }
   .legend .muted { margin-left: auto; color: var(--tertiary); }
   .footer { display: flex; justify-content: space-between; margin-top: 12px; font-size: 11px; }
+  .models-header { display: flex; align-items: center; gap: 8px; }
+  .models-header .grow { flex: 1; min-width: 0; }
+  .manage { font-size: 10px; margin-top: 6px; }
 </style>

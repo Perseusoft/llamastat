@@ -88,7 +88,8 @@ impl LlamaCpp {
             };
             let args = status.map(|s| s.args.as_slice()).unwrap_or_default();
             let mut info = ModelInfo::new(BackendKind::LlamaCpp, entry.id.clone(), state);
-            info.size_bytes = argument(args, "--model").and_then(|path| std::fs::metadata(path).ok()).map(|m| m.len());
+            info.path = argument(args, "--model").map(str::to_string);
+            info.size_bytes = info.path.as_deref().and_then(|path| std::fs::metadata(path).ok()).map(|m| m.len());
             info.process_match = Some(ProcessMatch::FlagValue { exe: "llama-server", flag: "--alias", value: entry.id.clone() });
             if state == ModelState::Loaded {
                 let mut stats = self.stats(client, &entry.id).await;
@@ -240,6 +241,57 @@ impl Ollama {
 
     pub async fn unload(&self, client: &reqwest::Client, model: &str) -> Result<(), String> {
         post(client, format!("{}/api/generate", self.base), json!({ "model": model, "keep_alive": 0 })).await
+    }
+
+    /// `ollama pull`: streams NDJSON progress lines (one `total`/`completed` pair per layer).
+    /// `client` must have no overall timeout. Progress is the sum over the layers seen so far.
+    pub async fn pull(&self, client: &reqwest::Client, model: &str, cancel: &std::sync::atomic::AtomicBool,
+                      mut report: impl FnMut(u64, Option<u64>)) -> Result<(), String> {
+        use futures::StreamExt;
+        #[derive(Deserialize)]
+        struct Line { status: Option<String>, error: Option<String>, digest: Option<String>, total: Option<u64>, completed: Option<u64> }
+
+        let response = client.post(format!("{}/api/pull", self.base))
+            .json(&json!({ "model": model, "stream": true }))
+            .send().await.map_err(|e| e.to_string())?;
+        if !response.status().is_success() {
+            let status = response.status();
+            let text = response.text().await.unwrap_or_default();
+            return Err(format!("HTTP {status}: {}", text.chars().take(300).collect::<String>()));
+        }
+        let mut layers: HashMap<String, (u64, u64)> = HashMap::new();
+        let mut buffer = String::new();
+        let mut stream = response.bytes_stream();
+        while let Some(chunk) = stream.next().await {
+            if cancel.load(std::sync::atomic::Ordering::Relaxed) { return Err("cancelled".into()); }
+            buffer.push_str(&String::from_utf8_lossy(&chunk.map_err(|e| e.to_string())?));
+            while let Some(end) = buffer.find('\n') {
+                let line = buffer[..end].trim().to_string();
+                buffer.drain(..=end);
+                if line.is_empty() { continue; }
+                let Ok(parsed) = serde_json::from_str::<Line>(&line) else { continue };
+                if let Some(error) = parsed.error { return Err(error); }
+                if let (Some(digest), Some(total)) = (parsed.digest, parsed.total) {
+                    layers.insert(digest, (parsed.completed.unwrap_or(0), total));
+                    let done: u64 = layers.values().map(|(c, _)| c).sum();
+                    let total: u64 = layers.values().map(|(_, t)| t).sum();
+                    report(done, Some(total));
+                }
+                if parsed.status.as_deref() == Some("success") { return Ok(()); }
+            }
+        }
+        Err("the pull ended without a success status".into())
+    }
+
+    pub async fn delete(&self, client: &reqwest::Client, model: &str) -> Result<(), String> {
+        let response = client.delete(format!("{}/api/delete", self.base))
+            .timeout(Duration::from_secs(60))
+            .json(&json!({ "model": model }))
+            .send().await.map_err(|e| e.to_string())?;
+        if response.status().is_success() { return Ok(()); }
+        let status = response.status();
+        let text = response.text().await.unwrap_or_default();
+        Err(format!("HTTP {status}: {}", text.chars().take(300).collect::<String>()))
     }
 }
 

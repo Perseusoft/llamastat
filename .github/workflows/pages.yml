@@ -1,0 +1,40 @@
+name: Pages
+
+# Publishes site/ (plus the screenshots in docs/) to GitHub Pages: https://llamastat.perseusoft.tech
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", "docs/*.png", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Assemble site
+        run: |
+          mkdir -p _site/img
+          cp -R site/. _site/
+          cp docs/*.png _site/img/
+          ls -R _site
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4

@@ -4,7 +4,7 @@ Two workflows in `.github/workflows/`:
 
 - **CI** (`ci.yml`): on every push to `main` and on PRs, type-checks the UI and runs the Rust tests on Linux, macOS and Windows.
 - **Release** (`release.yml`): on a `v*` tag (or "Run workflow" by hand), builds installers for every platform,
-  attaches them to a **draft** GitHub Release, and mirrors them to Cloudflare R2 if it's configured.
+  attaches them to a **draft** GitHub Release. Publishing the release is what makes the download page show it.
 
 | Job | Runner | Output |
 |---|---|---|
@@ -28,45 +28,17 @@ Linux is built on Ubuntu 22.04 so the binaries run on glibc 2.35 and newer.
    ```
 3. When the workflow finishes, review the draft release on GitHub and publish it.
 
-## Cloudflare R2 (download mirror)
+## Download page (GitHub Pages)
 
-The `r2` job runs only when the repository **variable** `R2_BUCKET` is set. It uploads to:
+`site/index.html` is the landing/download page at **https://llamastat.perseusoft.tech** (EN/ES, picks the visitor's OS).
+It asks the GitHub API for the latest published release and links its assets directly; until that answers (or if it
+fails) every link points at the releases page. Draft releases are invisible to it, so publish the draft to ship. `.github/workflows/pages.yml` publishes it on every push to `main` that touches
+`site/` or the screenshots in `docs/`. One-time setup:
 
-- `releases/<tag>/…` – every file, versioned names.
-- `latest/…` – same files with the version stripped (`Llamastat_universal.dmg`, `Llamastat_x64-setup.exe`,
-  `llamastat_amd64.deb`, `llamastat.x86_64.rpm`…), so download links never change.
-
-Setup:
-
-1. **Cloudflare → R2 → Create bucket**, e.g. `llamastat-downloads`.
-2. **R2 → Manage API tokens → Create API token** with *Object Read & Write* on that bucket. Copy the
-   *Access Key ID*, *Secret Access Key* and your *Account ID*.
-3. Make the files downloadable: bucket → **Settings → Custom Domains** (e.g. `downloads.perseussoft.com`), or enable the
-   `r2.dev` public URL for testing.
-4. **GitHub → Perseusoft/llamastat → Settings → Secrets and variables → Actions**:
-
-   | Kind | Name | Value |
-   |---|---|---|
-   | Secret | `R2_ACCOUNT_ID` | Cloudflare account ID |
-   | Secret | `R2_ACCESS_KEY_ID` | token access key |
-   | Secret | `R2_SECRET_ACCESS_KEY` | token secret |
-   | Variable | `R2_BUCKET` | `llamastat-downloads` |
-
-5. Once a tagged release has been mirrored, point the README download table at
-   `https://<your-domain>/latest/<file>`.
-
-### Uploading by hand
-
-`scripts/r2-upload.sh` uploads with the same layout, handy to try the bucket before the first tagged release or to
-re-publish an existing GitHub release:
-
-```bash
-export R2_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=... R2_BUCKET=llamastat-downloads
-scripts/r2-upload.sh v0.2.0 app/src-tauri/target/release/bundle   # local builds
-scripts/r2-upload.sh v0.2.0 --from-github                          # assets of the GitHub release
-```
-
-Folders are created on upload (R2 has no real folders, just key prefixes).
+1. **Cloudflare DNS (perseusoft.tech)**: `CNAME llamastat → perseusoft.github.io` (DNS only / grey cloud, so GitHub can
+   issue the certificate; proxying can be turned on afterwards).
+2. Run the *Pages* workflow once (it enables Pages on the repo), then in **Settings → Pages** confirm the custom domain
+   `llamastat.perseusoft.tech` and tick *Enforce HTTPS* once the certificate is ready.
 
 ## macOS signing (optional)
 
